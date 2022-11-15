@@ -1,0 +1,15 @@
+{
+  "Title": "MToon",
+  "Type": "content",
+  "Org": "edison",
+  "Ident": "mtoon",
+  "Tags": "",
+  "Schema": 1,
+  "HasAssets": true,
+  "AssetsPath": "",
+  "ResourcePaths": null,
+  "HasCode": false,
+  "CodePath": null,
+  "RootNamespace": null,
+  "Metadata": {}
+}
