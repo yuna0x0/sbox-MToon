@@ -10,3 +10,4 @@ https://github.com/Santarh/MToon
 
 - Multi-pass rendering is not yet supported. Therefore, the outline pass has not been implemented yet.
 - MatCap and parametric rim lighting have not been implemented yet.
+- Some lighting will look different than Unity because of the engine or partial code differences.
