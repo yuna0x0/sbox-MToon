@@ -59,6 +59,8 @@ PS
 
 	RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
 
+	// #define MTOON_DEBUG_NORMAL
+	// #define MTOON_DEBUG_LITSHADERATE
 	#define _NORMALMAP
 	#define _ALPHATEST_ON
 	#define _ALPHABLEND_ON
@@ -113,7 +115,7 @@ PS
 		float2 mainUv;
 		float4 mainTex;
 		float alpha;
-		// float3 worldNormal;
+		float3 worldNormal;
 		float3 worldView;
 		float4 lit;
 		float4 shade;
@@ -148,7 +150,7 @@ PS
 #endif
 
 			// normal
-			// worldNormal = m.Normal;
+			worldNormal = m.Normal;
 
 // 			// normal
 // 			float3 tspace0 = float3(i.vTangentUWs.x, i.vTangentVWs.x, i.vNormalWs.x);
@@ -258,18 +260,18 @@ PS
 			// vColor.xyz += lerp(emission, float3(0, 0, 0), i.isOutline);
 			vColor.xyz += emission;
 
-    		// debug
+			// debug
 #ifdef MTOON_DEBUG_NORMAL
     #ifdef MTOON_FORWARD_ADD
-        	return float4(0, 0, 0, 0);
+			return float4(0, 0, 0, 0);
     #else
-        	return float4(worldNormal * 0.5 + 0.5, alpha);
+			return float4(worldNormal * 0.5 + 0.5, alpha);
     #endif
 #elif MTOON_DEBUG_LITSHADERATE
     #ifdef MTOON_FORWARD_ADD
-        	return float4(0, 0, 0, 0);
+			return float4(0, 0, 0, 0);
     #else
-        	return float4(lightIntensity * lighting, alpha);
+			return float4(lightIntensity * lighting, alpha);
     #endif
 #endif
 
