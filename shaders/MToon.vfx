@@ -225,7 +225,10 @@ PS
             // Light with our ambient color
             for(int i = 0; i < 6; i++)
                 flColor += vAmbientCube[i] * (1.0f / 6.0f);
-            lightShade.Diffuse = flColor * lit.xyz;
+            
+            float3 indirectLighting = flColor;
+            indirectLighting = lerp(indirectLighting, max(EPS_COL, max(indirectLighting.x, max(indirectLighting.y, indirectLighting.z))), LightColorAttenuation); // color atten
+            lightShade.Diffuse = indirectLighting * lit.xyz;
 
             lightShade.Diffuse = min(lightShade.Diffuse, lit.xyz); // comment out if you want to PBR absolutely.
 
