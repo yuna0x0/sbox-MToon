@@ -79,21 +79,23 @@ PS
     CreateTexture2DWithoutSampler(ShadeTexture)< Channel(RGBA, Box(InputShadeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
 
     float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,0/Texture,10/4"); >;
-    float Cutoff < UiType(Slider); Range( 0.0, 1.0 ); Default1(0.5); UiGroup("MToon Color,0/Alpha,20/1"); >;
+    float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,0/Alpha,20/1"); >;
 
-    float ShadeToony < UiType(Slider); Range( 0.0, 1.0 ); Default1(0.9); UiGroup("MToon Lighting,1/1"); >;
+    float ShadeToony < UiType(Slider); Range(0.0, 1.0); Default1(0.9); UiGroup("MToon Lighting,1/1"); >;
 
     // CreateInputTexture2D(InputBumpMap, Linear, 8, "", "", "MToon Lighting,1/2", Default4(0.5, 0.5, 1.0, 0.5));
     // CreateTexture2DWithoutSampler(BumpMap)< Channel(RGBA, Box(InputBumpMap), Linear); OutputFormat(BC7); SrgbRead(false); >;
 
-    float ShadeShift < UiType(Slider); Range( -1.0, 1.0 ); Default1(0.0); UiGroup("MToon Lighting,11/Advanced Settings,20/1"); >;
+    float ShadeShift < UiType(Slider); Range(-1.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,11/Advanced Settings,20/1"); >;
 
     CreateInputTexture2D(InputShadingGradeTexture, Srgb, 8, "", "", "MToon Lighting,1/Advanced Settings,20/2", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(ShadingGradeTexture)< Channel(RGBA, Box(InputShadingGradeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
 
-    float ShadingGradeRate < UiType(Slider); Range( 0.0, 1.0 ); Default1(1.0); UiGroup("MToon Lighting,1/Advanced Settings,20/3"); >;
+    float ShadingGradeRate < UiType(Slider); Range(0.0, 1.0); Default1(1.0); UiGroup("MToon Lighting,1/Advanced Settings,20/3"); >;
 
-    float LightColorAttenuation < UiType(Slider); Range( 0.0, 1.0 ); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,20/4"); >;
+    float LightColorAttenuation < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,20/4"); >;
+
+    float IndirectLightIntensity < UiType(Slider); Range(0.0, 1.0); Default1(0.1); UiGroup("MToon Lighting,1/Advanced Settings,20/5"); >;
 
     // Texture2D _RimTexture;
     // float4 _RimColor;
@@ -152,23 +154,23 @@ PS
             // normal
             worldNormal = m.Normal;
 
-// 			// normal
-// 			float3 tspace0 = float3(i.vTangentUWs.x, i.vTangentVWs.x, i.vNormalWs.x);
-// 			float3 tspace1 = float3(i.vTangentUWs.y, i.vTangentVWs.y, i.vNormalWs.y);
-// 			float3 tspace2 = float3(i.vTangentUWs.z, i.vTangentVWs.z, i.vNormalWs.z);
+//          // normal
+//          float3 tspace0 = float3(i.vTangentUWs.x, i.vTangentVWs.x, i.vNormalWs.x);
+//          float3 tspace1 = float3(i.vTangentUWs.y, i.vTangentVWs.y, i.vNormalWs.y);
+//          float3 tspace2 = float3(i.vTangentUWs.z, i.vTangentVWs.z, i.vNormalWs.z);
 // #ifdef _NORMALMAP
-// 			half3 tangentNormal = BumpMap.Sample(MeshTextureSampler, mainUv).xyz;
-// 			worldNormal.x = dot(tspace0, tangentNormal);
-// 			worldNormal.y = dot(tspace1, tangentNormal);
-// 			worldNormal.z = dot(tspace2, tangentNormal);
+//          half3 tangentNormal = BumpMap.Sample(MeshTextureSampler, mainUv).xyz;
+//          worldNormal.x = dot(tspace0, tangentNormal);
+//          worldNormal.y = dot(tspace1, tangentNormal);
+//          worldNormal.z = dot(tspace2, tangentNormal);
 // #else
-//     		worldNormal = half3(tspace0.z, tspace1.z, tspace2.z);
+//          worldNormal = half3(tspace0.z, tspace1.z, tspace2.z);
 // #endif
-// 			// unity_OrthoParams.w -> 1.0 is orthographic / 0.0 is perspective
-// 			float3 worldView = normalize(lerp(g_vCameraPositionWs - i.vPositionWithOffsetWs, g_matWorldToView[2].xyz, unity_OrthoParams.w));
-// 			worldNormal *= step(0, dot(worldView, worldNormal)) * 2 - 1; // flip if projection matrix is flipped
-// 			// worldNormal *= lerp(+1.0, -1.0, i.isOutline);
-// 			worldNormal = normalize(worldNormal);
+//          // unity_OrthoParams.w -> 1.0 is orthographic / 0.0 is perspective
+//          float3 worldView = normalize(lerp(g_vCameraPositionWs - i.vPositionWithOffsetWs, g_matWorldToView[2].xyz, unity_OrthoParams.w));
+//          worldNormal *= step(0, dot(worldView, worldNormal)) * 2 - 1; // flip if projection matrix is flipped
+//          // worldNormal *= lerp(+1.0, -1.0, i.isOutline);
+//          worldNormal = normalize(worldNormal);
 
 
             lit = Color * mainTex;
@@ -226,7 +228,7 @@ PS
             for(int i = 0; i < 6; i++)
                 flColor += vAmbientCube[i] * (1.0f / 6.0f);
             
-            float3 indirectLighting = flColor;
+            float3 indirectLighting = lerp(flColor, 1.0, IndirectLightIntensity);
             indirectLighting = lerp(indirectLighting, max(EPS_COL, max(indirectLighting.x, max(indirectLighting.y, indirectLighting.z))), LightColorAttenuation); // color atten
             lightShade.Diffuse = indirectLighting * lit.xyz;
 
