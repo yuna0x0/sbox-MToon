@@ -200,7 +200,7 @@ PS
             // Albedo color
             lightShade.Diffuse = lerp(shade.rgb, lit.rgb, lightIntensity);
 
-            float3 lightColor = saturate(light.Visibility * light.Attenuation * light.Color) * step(0.5, length(light.LightDir)); // length(lightDir) is zero if directional light is disabled.
+            float3 lightColor = saturate(light.Visibility * light.Attenuation * light.Color);
             // Direct Light
             lighting = lightColor;
             lighting = lerp(lighting, max(EPS_COL, max(lighting.x, max(lighting.y, lighting.z))), LightColorAttenuation); // color atten
