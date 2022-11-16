@@ -12,7 +12,11 @@ HEADER
 //=========================================================================================================================
 FEATURES
 {
+    Feature(F_USE_NORMAL_MAP, 0..1, "MToon Lighting");
     #include "common/features.hlsl"
+    Feature(F_RENDERING_TYPE, 0..1(0="Opaque", 1="Cutout"), "Rendering");
+    Feature(F_DEBUG_NORMAL, 0..1, "MToon Debug");
+    Feature(F_DEBUG_LITSHADERATE, 0..1, "MToon Debug");
 }
 
 //=========================================================================================================================
@@ -55,16 +59,37 @@ VS
 
 PS
 {
+    //
+    // Combos
+    //
+    StaticCombo(S_USE_NORMAL_MAP, F_USE_NORMAL_MAP, Sys(ALL));
+    StaticCombo(S_RENDERING_TYPE, F_RENDERING_TYPE, Sys(ALL));
+    StaticCombo(S_DEBUG_NORMAL, F_DEBUG_NORMAL, Sys(ALL));
+    StaticCombo(S_DEBUG_LITSHADERATE, F_DEBUG_LITSHADERATE, Sys(ALL));
+
+    //
+    // Includes
+    //
     #include "common/pixel.hlsl"
 
     RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
 
-    // #define MTOON_DEBUG_NORMAL
-    // #define MTOON_DEBUG_LITSHADERATE
-    #define _NORMALMAP
-    #define _ALPHATEST_ON
-    #define _ALPHABLEND_ON
+#if S_DEBUG_NORMAL
+    #define MTOON_DEBUG_NORMAL
+#endif
 
+#if S_DEBUG_LITSHADERATE
+    #define MTOON_DEBUG_LITSHADERATE
+#endif
+
+#if S_USE_NORMAL_MAP
+    #define _NORMALMAP
+#endif
+
+#if S_RENDERING_TYPE == 1
+    #define _ALPHATEST_ON
+#endif
+    
     SamplerState MeshTextureSampler < Filter(MIN_MAG_MIP_LINEAR); AddressU(WRAP); AddressV(WRAP); >;
 
     //
@@ -79,7 +104,10 @@ PS
     CreateTexture2DWithoutSampler(ShadeTexture)< Channel(RGBA, Box(InputShadeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
 
     float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,0/Texture,10/4"); >;
+
+#if S_RENDERING_TYPE == 1 
     float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,0/Alpha,20/1"); >;
+#endif
 
     float ShadeToony < UiType(Slider); Range(0.0, 1.0); Default1(0.9); UiGroup("MToon Lighting,1/1"); >;
 
@@ -117,13 +145,14 @@ PS
         float2 mainUv;
         float4 mainTex;
         float alpha;
+        float3 worldPos;
         float3 worldNormal;
         float3 worldView;
         float4 lit;
         float4 shade;
         float shadingGrade;
+        float lightIntensity;
         float3 lighting;
-        float3 flColor;
 
         //
         // Consumes a material and converts it to the internal shading parameters,
@@ -147,34 +176,17 @@ PS
             clip(alpha - Cutoff);
             alpha = 1.0; // Discarded, otherwise it should be assumed to have full opacity
 #endif
-#ifdef _ALPHABLEND_ON
-            alpha = Color.a * mainTex.a;
-#endif
+
+            worldPos = i.vPositionWithOffsetWs;
 
             // normal
+#ifdef _NORMALMAP
             worldNormal = m.Normal;
-
-//          // normal
-//          float3 tspace0 = float3(i.vTangentUWs.x, i.vTangentVWs.x, i.vNormalWs.x);
-//          float3 tspace1 = float3(i.vTangentUWs.y, i.vTangentVWs.y, i.vNormalWs.y);
-//          float3 tspace2 = float3(i.vTangentUWs.z, i.vTangentVWs.z, i.vNormalWs.z);
-// #ifdef _NORMALMAP
-//          half3 tangentNormal = BumpMap.Sample(MeshTextureSampler, mainUv).xyz;
-//          worldNormal.x = dot(tspace0, tangentNormal);
-//          worldNormal.y = dot(tspace1, tangentNormal);
-//          worldNormal.z = dot(tspace2, tangentNormal);
-// #else
-//          worldNormal = half3(tspace0.z, tspace1.z, tspace2.z);
-// #endif
-//          // unity_OrthoParams.w -> 1.0 is orthographic / 0.0 is perspective
-//          float3 worldView = normalize(lerp(g_vCameraPositionWs - i.vPositionWithOffsetWs, g_matWorldToView[2].xyz, unity_OrthoParams.w));
-//          worldNormal *= step(0, dot(worldView, worldNormal)) * 2 - 1; // flip if projection matrix is flipped
-//          // worldNormal *= lerp(+1.0, -1.0, i.isOutline);
-//          worldNormal = normalize(worldNormal);
-
+#else
+            worldNormal = float3(i.vNormalWs.x, i.vNormalWs.y, i.vNormalWs.z);
+#endif
 
             lit = Color * mainTex;
-            flColor = 0.0f;
 
             shadingGrade = 1.0 - ShadingGradeRate * (1.0 - ShadingGradeTexture.Sample(MeshTextureSampler, mainUv).r);
             shade = ShadeColor * ShadeTexture.Sample(MeshTextureSampler, mainUv);
@@ -188,10 +200,14 @@ PS
             // Shading output
             LightShade lightShade;
 
+            float dotNL = dot(light.LightDir, worldNormal);
+
             // Decide albedo color rate from Direct Light
-            float lightIntensity = light.NdotL; // [0, 1]
+            lightIntensity = dotNL; // [-1, 1]
+            lightIntensity = lightIntensity * 0.5 + 0.5; // from [-1, +1] to [0, 1]
             lightIntensity = lightIntensity * light.Visibility * light.Attenuation; // receive shadow
             lightIntensity = lightIntensity * shadingGrade; // darker
+            lightIntensity = lightIntensity * 2.0 - 1.0; // from [0, 1] to [-1, +1]
             // tooned. mapping from [minIntensityThreshold, maxIntensityThreshold] to [0, 1]
             float maxIntensityThreshold = lerp(1, ShadeShift, ShadeToony);
             float minIntensityThreshold = ShadeShift;
@@ -219,16 +235,9 @@ PS
         LightShade Indirect()
         {
             LightShade lightShade;
-
-            // Get a flat average ambient
-            float3 vAmbientCube[6];
-            SampleLightProbeVolume(vAmbientCube, float3(0,0,0));
-
-            // Light with our ambient color
-            for(int i = 0; i < 6; i++)
-                flColor += vAmbientCube[i] * (1.0f / 6.0f);
             
-            float3 indirectLighting = lerp(flColor, 1.0, IndirectLightIntensity);
+            float3 toonedGI = 0.5 * (SampleLightProbeVolume(worldPos, float3(0, 1, 0)) + SampleLightProbeVolume(worldPos, float3(0, -1, 0)));
+            float3 indirectLighting = lerp(toonedGI, SampleLightProbeVolume(worldPos, worldNormal), IndirectLightIntensity);
             indirectLighting = lerp(indirectLighting, max(EPS_COL, max(indirectLighting.x, max(indirectLighting.y, indirectLighting.z))), LightColorAttenuation); // color atten
             lightShade.Diffuse = indirectLighting * lit.xyz;
 
@@ -272,7 +281,8 @@ PS
     #else
             return float4(worldNormal * 0.5 + 0.5, alpha);
     #endif
-#elif MTOON_DEBUG_LITSHADERATE
+#endif
+#ifdef MTOON_DEBUG_LITSHADERATE
     #ifdef MTOON_FORWARD_ADD
             return float4(0, 0, 0, 0);
     #else
@@ -280,8 +290,7 @@ PS
     #endif
 #endif
 
-            float4 result = float4(vColor.xyz, alpha);
-            return result;
+            return float4(vColor.xyz, alpha);
         }
     };
 
