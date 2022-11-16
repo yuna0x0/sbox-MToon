@@ -253,7 +253,7 @@ PS
         {
             // // parametric rim lighting
             // float3 staticRimLighting = 1;
-            // float3 mixedRimLighting = lighting + flColor;
+            // float3 mixedRimLighting = lighting + indirectLighting;
             // float3 rimLighting = lerp(staticRimLighting, mixedRimLighting, _RimLightingMix);
             // float3 rim = pow(saturate(1.0 - dot(worldNormal, worldView) + _RimLift), max(_RimFresnelPower, EPS_COL)) * _RimColor.rgb * tex2D(_RimTexture, mainUv).rgb;
             // // i.isOutline -> 0 when outline is disabled, 1 when outline is enabled.
