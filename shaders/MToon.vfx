@@ -15,8 +15,7 @@ FEATURES
     Feature(F_USE_NORMAL_MAP, 0..1, "MToon Lighting");
     #include "common/features.hlsl"
     Feature(F_RENDERING_TYPE, 0..1(0="Opaque", 1="Cutout"), "Rendering");
-    Feature(F_DEBUG_NORMAL, 0..1, "MToon Debug");
-    Feature(F_DEBUG_LITSHADERATE, 0..1, "MToon Debug");
+    Feature(F_DEBUGGING_OPTIONS, 0..2(0="None", 1="Normal", 2="LitShadeRate"), "MToon Debug");
 }
 
 //=========================================================================================================================
@@ -64,8 +63,7 @@ PS
     //
     StaticCombo(S_USE_NORMAL_MAP, F_USE_NORMAL_MAP, Sys(ALL));
     StaticCombo(S_RENDERING_TYPE, F_RENDERING_TYPE, Sys(ALL));
-    StaticCombo(S_DEBUG_NORMAL, F_DEBUG_NORMAL, Sys(ALL));
-    StaticCombo(S_DEBUG_LITSHADERATE, F_DEBUG_LITSHADERATE, Sys(ALL));
+    StaticCombo(S_DEBUGGING_OPTIONS, F_DEBUGGING_OPTIONS, Sys(ALL));
 
     //
     // Includes
@@ -73,14 +71,6 @@ PS
     #include "common/pixel.hlsl"
 
     RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
-
-#if S_DEBUG_NORMAL
-    #define MTOON_DEBUG_NORMAL
-#endif
-
-#if S_DEBUG_LITSHADERATE
-    #define MTOON_DEBUG_LITSHADERATE
-#endif
 
 #if S_USE_NORMAL_MAP
     #define _NORMALMAP
@@ -275,14 +265,13 @@ PS
             vColor.xyz += emission;
 
             // debug
-#ifdef MTOON_DEBUG_NORMAL
+#if S_DEBUGGING_OPTIONS == 1
     #ifdef MTOON_FORWARD_ADD
             return float4(0, 0, 0, 0);
     #else
             return float4(worldNormal * 0.5 + 0.5, alpha);
     #endif
-#endif
-#ifdef MTOON_DEBUG_LITSHADERATE
+#elif S_DEBUGGING_OPTIONS == 2
     #ifdef MTOON_FORWARD_ADD
             return float4(0, 0, 0, 0);
     #else
