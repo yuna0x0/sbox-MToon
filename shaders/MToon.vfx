@@ -85,46 +85,45 @@ PS
     //
     // Main
     //
-    CreateInputTexture2D(InputMainTex, Srgb, 8, "", "", "MToon Color,0/Texture,10/1", Default4(1.0, 1.0, 1.0, 1.0));
-    CreateTexture2DWithoutSampler(MainTex)< Channel(RGBA, Box(InputMainTex), Srgb); OutputFormat(BC7); SrgbRead(true); >;
+    CreateInputTexture2D(InputLitTexture, Srgb, 8, "", "", "MToon Color,0/Texture,1/1", Default4(1.0, 1.0, 1.0, 1.0));
+    CreateTexture2DWithoutSampler(LitTexture)< Channel(RGBA, Box(InputLitTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
 
-    float4 Color < UiType(Color); Default4(1.0, 1.0, 1.0, 1.0); UiGroup("MToon Color,0/Texture,10/2"); >;
+    float4 LitColor < UiType(Color); Default4(1.0, 1.0, 1.0, 1.0); UiGroup("MToon Color,0/Texture,1/2"); >;
 
-    CreateInputTexture2D(InputShadeTexture, Srgb, 8, "", "", "MToon Color,0/Texture,10/3", Default4(1.0, 1.0, 1.0, 1.0));
+    CreateInputTexture2D(InputShadeTexture, Srgb, 8, "", "", "MToon Color,0/Texture,1/3", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(ShadeTexture)< Channel(RGBA, Box(InputShadeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
 
-    float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,0/Texture,10/4"); >;
+    float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,0/Texture,1/4"); >;
 
     #if S_RENDERING_TYPE == 1 
-        float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,0/Alpha,20/1"); >;
+        float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,0/Alpha,2/1"); >;
     #endif
 
-    float ShadeToony < UiType(Slider); Range(0.0, 1.0); Default1(0.9); UiGroup("MToon Lighting,1/1"); >;
+    float ShadingToony < UiType(Slider); Range(0.0, 1.0); Default1(0.9); UiGroup("MToon Lighting,1/1"); >;
 
-    // CreateInputTexture2D(InputBumpMap, Linear, 8, "", "", "MToon Lighting,1/2", Default4(0.5, 0.5, 1.0, 0.5));
-    // CreateTexture2DWithoutSampler(BumpMap)< Channel(RGBA, Box(InputBumpMap), Linear); OutputFormat(BC7); SrgbRead(false); >;
+    float ShadingShift < UiType(Slider); Range(-1.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/1"); >;
 
-    float ShadeShift < UiType(Slider); Range(-1.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,11/Advanced Settings,20/1"); >;
-
-    CreateInputTexture2D(InputShadingGradeTexture, Srgb, 8, "", "", "MToon Lighting,1/Advanced Settings,20/2", Default4(1.0, 1.0, 1.0, 1.0));
+    CreateInputTexture2D(InputShadingGradeTexture, Srgb, 8, "", "", "MToon Lighting,1/Advanced Settings,2/2", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(ShadingGradeTexture)< Channel(RGBA, Box(InputShadingGradeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
 
-    float ShadingGradeRate < UiType(Slider); Range(0.0, 1.0); Default1(1.0); UiGroup("MToon Lighting,1/Advanced Settings,20/3"); >;
+    float ShadingGradeRate < UiType(Slider); Range(0.0, 1.0); Default1(1.0); UiGroup("MToon Lighting,1/Advanced Settings,2/3"); >;
 
-    float LightColorAttenuation < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,20/4"); >;
+    float LightColorAttenuation < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/4"); >;
 
-    float IndirectLightIntensity < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,20/5"); >;
+    float IndirectLightIntensity < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/5"); >;
 
-    // Texture2D _RimTexture;
-    // float4 _RimColor;
-    // float _RimLightingMix;
-    // float _RimFresnelPower;
-    // float _RimLift;
-    // Texture2D _SphereAdd;
-
-    float4 EmissionColor < UiType(Color); Default4(0.0, 0.0, 0.0, 1.0); UiGroup("MToon Emission,2/1"); >;
-    CreateInputTexture2D(InputEmissionMap, Srgb, 8, "", "", "MToon Emission,2/2", Default4(1.0, 1.0, 1.0, 1.0));
+    CreateInputTexture2D(InputEmissionMap, Srgb, 8, "", "", "MToon Emission,2/1", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(EmissionMap)< Channel(RGBA, Box(InputEmissionMap), Srgb); OutputFormat(BC7); SrgbRead(true); >;
+    float4 EmissionColor < UiType(Color); Default4(0.0, 0.0, 0.0, 1.0); UiGroup("MToon Emission,2/2"); >;
+    CreateInputTexture2D(InputMatCap, Srgb, 8, "", "", "MToon Emission,2/3", Default4(0.0, 0.0, 0.0, 1.0));
+    CreateTexture2DWithoutSampler(MatCap)< Channel(RGBA, Box(InputMatCap), Srgb); OutputFormat(BC7); SrgbRead(true); >;
+
+    CreateInputTexture2D(InputRimTexture, Srgb, 8, "", "", "MToon Rim,3/1", Default4(1.0, 1.0, 1.0, 1.0));
+    CreateTexture2DWithoutSampler(RimTexture)< Channel(RGBA, Box(InputRimTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
+    float4 RimColor < UiType(Color); Default4(0.0, 0.0, 0.0, 1.0); UiGroup("MToon Rim,3/2"); >;
+    float RimLightingMix < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Rim,3/3"); >;
+    float RimFresnelPower < UiType(Slider); Range(0.0, 100.0); Default1(1.0); UiGroup("MToon Rim,3/4"); >;
+    float RimLift < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Rim,3/5"); >;
 
     // const
     static const float PI_2 = 6.28318530718;
@@ -135,14 +134,19 @@ PS
         float2 mainUv;
         float4 mainTex;
         float alpha;
-        float3 worldPos;
-        float3 worldNormal;
-        float3 worldView;
+
+        float3 positionWs;
+        float3 positionWithOffsetWs;
+        float3 viewRayWs;
+        float3 normalWs;
+
         float4 lit;
         float4 shade;
         float shadingGrade;
         float lightIntensity;
         float3 lighting;
+
+        float3 indirectLighting;
 
         //
         // Consumes a material and converts it to the internal shading parameters,
@@ -156,27 +160,31 @@ PS
             mainUv = i.vTextureCoords.xy;
             
             // main tex
-            mainTex = MainTex.Sample(MeshTextureSampler, mainUv);
+            mainTex = LitTexture.Sample(MeshTextureSampler, mainUv);
         
             // alpha
             alpha = 1;
             #ifdef _ALPHATEST_ON
-                alpha = Color.a * mainTex.a;
+                alpha = LitColor.a * mainTex.a;
                 alpha = (alpha - Cutoff) / max(fwidth(alpha), EPS_COL) + 0.5; // Alpha to Coverage
                 clip(alpha - Cutoff);
                 alpha = 1.0; // Discarded, otherwise it should be assumed to have full opacity
             #endif
 
-            worldPos = i.vPositionWithOffsetWs;
+            positionWithOffsetWs = i.vPositionWithOffsetWs;
+            positionWs = positionWithOffsetWs + g_vCameraPositionWs;
+
+            // View ray in World Space
+            viewRayWs = CalculatePositionToCameraDirWs(positionWs);
 
             // normal
             #ifdef _NORMALMAP
-                worldNormal = m.Normal;
+                normalWs = m.Normal;
             #else
-                worldNormal = float3(i.vNormalWs.x, i.vNormalWs.y, i.vNormalWs.z);
+                normalWs = float3(i.vNormalWs.x, i.vNormalWs.y, i.vNormalWs.z);
             #endif
 
-            lit = Color * mainTex;
+            lit = LitColor * mainTex;
 
             shadingGrade = 1.0 - ShadingGradeRate * (1.0 - ShadingGradeTexture.Sample(MeshTextureSampler, mainUv).r);
             shade = ShadeColor * ShadeTexture.Sample(MeshTextureSampler, mainUv);
@@ -190,7 +198,7 @@ PS
             // Shading output
             LightShade lightShade;
 
-            float dotNL = dot(light.LightDir, worldNormal);
+            float dotNL = dot(light.LightDir, normalWs);
 
             // Decide albedo color rate from Direct Light
             lightIntensity = dotNL; // [-1, 1]
@@ -199,8 +207,8 @@ PS
             lightIntensity = lightIntensity * shadingGrade; // darker
             lightIntensity = lightIntensity * 2.0 - 1.0; // from [0, 1] to [-1, +1]
             // tooned. mapping from [minIntensityThreshold, maxIntensityThreshold] to [0, 1]
-            float maxIntensityThreshold = lerp(1, ShadeShift, ShadeToony);
-            float minIntensityThreshold = ShadeShift;
+            float maxIntensityThreshold = lerp(1, ShadingShift, ShadingToony);
+            float minIntensityThreshold = ShadingShift;
             lightIntensity = saturate((lightIntensity - minIntensityThreshold) / max(EPS_COL, (maxIntensityThreshold - minIntensityThreshold)));
             
             // Albedo color
@@ -226,8 +234,8 @@ PS
         {
             LightShade lightShade;
             
-            float3 toonedGI = 0.5 * (SampleLightProbeVolume(worldPos, float3(0, 1, 0)) + SampleLightProbeVolume(worldPos, float3(0, -1, 0)));
-            float3 indirectLighting = lerp(toonedGI, SampleLightProbeVolume(worldPos, worldNormal), IndirectLightIntensity);
+            float3 toonedGI = 0.5 * (SampleLightProbeVolume(positionWs, float3(0, 1, 0)) + SampleLightProbeVolume(positionWs, float3(0, -1, 0)));
+            indirectLighting = lerp(toonedGI, SampleLightProbeVolume(positionWs, normalWs), IndirectLightIntensity);
             indirectLighting = lerp(indirectLighting, max(EPS_COL, max(indirectLighting.x, max(indirectLighting.y, indirectLighting.z))), LightColorAttenuation); // color atten
             lightShade.Diffuse = indirectLighting * lit.xyz;
 
@@ -241,27 +249,23 @@ PS
 
         float4 PostProcess(float4 vColor)
         {
-            // // parametric rim lighting
-            // float3 staticRimLighting = 1;
-            // float3 mixedRimLighting = lighting + indirectLighting;
-            // float3 rimLighting = lerp(staticRimLighting, mixedRimLighting, _RimLightingMix);
-            // float3 rim = pow(saturate(1.0 - dot(worldNormal, worldView) + _RimLift), max(_RimFresnelPower, EPS_COL)) * _RimColor.rgb * tex2D(_RimTexture, mainUv).rgb;
-            // // i.isOutline -> 0 when outline is disabled, 1 when outline is enabled.
-            // vColor += lerp(rim * rimLighting, float3(0, 0, 0), i.isOutline);
+            // parametric rim lighting
+            half3 staticRimLighting = 1;
+            half3 mixedRimLighting = lighting + indirectLighting;
+            half3 rimLighting = lerp(staticRimLighting, mixedRimLighting, RimLightingMix);
+            half3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * RimTexture.Sample(MeshTextureSampler, mainUv).rgb;
+            vColor.xyz += rim * rimLighting;
 
             // // additive matcap
-            // float3 worldCameraUp = normalize(g_matWorldToView[1].xyz);
-            // float3 worldViewUp = normalize(worldCameraUp - worldView * dot(worldView, worldCameraUp));
-            // float3 worldViewRight = normalize(cross(worldView, worldViewUp));
-            // float2 matcapUv = float2(dot(worldViewRight, worldNormal), dot(worldViewUp, worldNormal)) * 0.5 + 0.5;
-            // float3 matcapLighting = tex2D(_SphereAdd, matcapUv);
-            // // i.isOutline -> 0 when outline is disabled, 1 when outline is enabled.
-            // vColor += lerp(matcapLighting, float3(0, 0, 0), i.isOutline);
+            half3 worldCameraUp = normalize(g_matWorldToView[1].xyz);
+            half3 worldViewUp = normalize(worldCameraUp - viewRayWs * dot(viewRayWs, worldCameraUp));
+            half3 worldViewRight = normalize(cross(viewRayWs, worldViewUp));
+            half2 matcapUv = half2(dot(worldViewRight, normalWs), dot(worldViewUp, normalWs)) * 0.5 + 0.5;
+            half3 matcapLighting = MatCap.Sample(MeshTextureSampler, matcapUv).xyz;
+            vColor.xyz += matcapLighting;
 
             // Emission
             float3 emission = EmissionMap.Sample(MeshTextureSampler, mainUv).rgb * EmissionColor.rgb;
-            // i.isOutline -> 0 when outline is disabled, 1 when outline is enabled.
-            // vColor.xyz += lerp(emission, float3(0, 0, 0), i.isOutline);
             vColor.xyz += emission;
 
             // debug
@@ -269,7 +273,7 @@ PS
                 #ifdef MTOON_FORWARD_ADD
                     return float4(0, 0, 0, 0);
                 #else
-                    return float4(worldNormal * 0.5 + 0.5, alpha);
+                    return float4(normalWs * 0.5 + 0.5, alpha);
                 #endif
             #elif S_DEBUGGING_OPTIONS == 2
                 #ifdef MTOON_FORWARD_ADD
@@ -282,7 +286,6 @@ PS
             return float4(vColor.xyz, alpha);
         }
     };
-
 
     float4 MainPs(PixelInput i) : SV_Target0
     {
