@@ -256,7 +256,7 @@ PS
             half3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * RimTexture.Sample(MeshTextureSampler, mainUv).rgb;
             vColor.xyz += rim * rimLighting;
 
-            // // additive matcap
+            // additive matcap
             half3 worldCameraUp = normalize(g_matWorldToView[1].xyz);
             half3 worldViewUp = normalize(worldCameraUp - viewRayWs * dot(viewRayWs, worldCameraUp));
             half3 worldViewRight = normalize(cross(viewRayWs, worldViewUp));
