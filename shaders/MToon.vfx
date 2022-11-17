@@ -113,7 +113,7 @@ PS
 
     float LightColorAttenuation < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,20/4"); >;
 
-    float IndirectLightIntensity < UiType(Slider); Range(0.0, 1.0); Default1(0.1); UiGroup("MToon Lighting,1/Advanced Settings,20/5"); >;
+    float IndirectLightIntensity < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,20/5"); >;
 
     // Texture2D _RimTexture;
     // float4 _RimColor;
