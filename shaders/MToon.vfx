@@ -72,13 +72,13 @@ PS
 
     RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
 
-#if S_USE_NORMAL_MAP
-    #define _NORMALMAP
-#endif
+    #if S_USE_NORMAL_MAP
+        #define _NORMALMAP
+    #endif
 
-#if S_RENDERING_TYPE == 1
-    #define _ALPHATEST_ON
-#endif
+    #if S_RENDERING_TYPE == 1
+        #define _ALPHATEST_ON
+    #endif
     
     SamplerState MeshTextureSampler < Filter(MIN_MAG_MIP_LINEAR); AddressU(WRAP); AddressV(WRAP); >;
 
@@ -95,9 +95,9 @@ PS
 
     float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,0/Texture,10/4"); >;
 
-#if S_RENDERING_TYPE == 1 
-    float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,0/Alpha,20/1"); >;
-#endif
+    #if S_RENDERING_TYPE == 1 
+        float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,0/Alpha,20/1"); >;
+    #endif
 
     float ShadeToony < UiType(Slider); Range(0.0, 1.0); Default1(0.9); UiGroup("MToon Lighting,1/1"); >;
 
@@ -160,21 +160,21 @@ PS
         
             // alpha
             alpha = 1;
-#ifdef _ALPHATEST_ON
-            alpha = Color.a * mainTex.a;
-            alpha = (alpha - Cutoff) / max(fwidth(alpha), EPS_COL) + 0.5; // Alpha to Coverage
-            clip(alpha - Cutoff);
-            alpha = 1.0; // Discarded, otherwise it should be assumed to have full opacity
-#endif
+            #ifdef _ALPHATEST_ON
+                alpha = Color.a * mainTex.a;
+                alpha = (alpha - Cutoff) / max(fwidth(alpha), EPS_COL) + 0.5; // Alpha to Coverage
+                clip(alpha - Cutoff);
+                alpha = 1.0; // Discarded, otherwise it should be assumed to have full opacity
+            #endif
 
             worldPos = i.vPositionWithOffsetWs;
 
             // normal
-#ifdef _NORMALMAP
-            worldNormal = m.Normal;
-#else
-            worldNormal = float3(i.vNormalWs.x, i.vNormalWs.y, i.vNormalWs.z);
-#endif
+            #ifdef _NORMALMAP
+                worldNormal = m.Normal;
+            #else
+                worldNormal = float3(i.vNormalWs.x, i.vNormalWs.y, i.vNormalWs.z);
+            #endif
 
             lit = Color * mainTex;
 
@@ -265,19 +265,19 @@ PS
             vColor.xyz += emission;
 
             // debug
-#if S_DEBUGGING_OPTIONS == 1
-    #ifdef MTOON_FORWARD_ADD
-            return float4(0, 0, 0, 0);
-    #else
-            return float4(worldNormal * 0.5 + 0.5, alpha);
-    #endif
-#elif S_DEBUGGING_OPTIONS == 2
-    #ifdef MTOON_FORWARD_ADD
-            return float4(0, 0, 0, 0);
-    #else
-            return float4(lightIntensity * lighting, alpha);
-    #endif
-#endif
+            #if S_DEBUGGING_OPTIONS == 1
+                #ifdef MTOON_FORWARD_ADD
+                    return float4(0, 0, 0, 0);
+                #else
+                    return float4(worldNormal * 0.5 + 0.5, alpha);
+                #endif
+            #elif S_DEBUGGING_OPTIONS == 2
+                #ifdef MTOON_FORWARD_ADD
+                    return float4(0, 0, 0, 0);
+                #else
+                    return float4(lightIntensity * lighting, alpha);
+                #endif
+            #endif
 
             return float4(vColor.xyz, alpha);
         }
