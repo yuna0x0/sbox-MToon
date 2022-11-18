@@ -126,17 +126,17 @@ PS
         float4 mainTex;
         float alpha;
 
-        float3 positionWs;
         float3 positionWithOffsetWs;
+        float3 positionWs;
         float3 viewRayWs;
         float3 normalWs;
 
         float4 lit;
         float4 shade;
         float shadingGrade;
+
         float lightIntensity;
         float3 lighting;
-
         float3 indirectLighting;
 
         //
@@ -176,11 +176,10 @@ PS
             #endif
 
             lit = LitColor * mainTex;
-
-            shadingGrade = 1.0 - ShadingGradeRate * (1.0 - Tex2DS(ShadingGradeTexture, TextureFiltering, mainUv).r);
             shade = ShadeColor * Tex2DS(ShadeTexture, TextureFiltering, mainUv);
+            shadingGrade = 1.0 - ShadingGradeRate * (1.0 - Tex2DS(ShadingGradeTexture, TextureFiltering, mainUv).r);
         }
-        
+
         //
         // Executed for every direct light
         //
@@ -217,7 +216,7 @@ PS
 
             return lightShade;
         }
-        
+
         //
         // Executed for indirect lighting, combine ambient occlusion, etc.
         //
