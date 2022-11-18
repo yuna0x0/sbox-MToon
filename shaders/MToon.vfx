@@ -79,8 +79,6 @@ PS
     #if S_RENDERING_TYPE == 1
         #define _ALPHATEST_ON
     #endif
-    
-    SamplerState MeshTextureSampler < Filter(MIN_MAG_MIP_LINEAR); AddressU(WRAP); AddressV(WRAP); >;
 
     //
     // Main
@@ -153,7 +151,7 @@ PS
             mainUv = i.vTextureCoords.xy;
             
             // main tex
-            mainTex = LitTexture.Sample(MeshTextureSampler, mainUv);
+            mainTex = Tex2DS(LitTexture, TextureFiltering, mainUv);
         
             // alpha
             alpha = 1;
@@ -179,8 +177,8 @@ PS
 
             lit = LitColor * mainTex;
 
-            shadingGrade = 1.0 - ShadingGradeRate * (1.0 - ShadingGradeTexture.Sample(MeshTextureSampler, mainUv).r);
-            shade = ShadeColor * ShadeTexture.Sample(MeshTextureSampler, mainUv);
+            shadingGrade = 1.0 - ShadingGradeRate * (1.0 - Tex2DS(ShadingGradeTexture, TextureFiltering, mainUv).r);
+            shade = ShadeColor * Tex2DS(ShadeTexture, TextureFiltering, mainUv);
         }
         
         //
@@ -246,7 +244,7 @@ PS
             float3 staticRimLighting = 1;
             float3 mixedRimLighting = lighting + indirectLighting;
             float3 rimLighting = lerp(staticRimLighting, mixedRimLighting, RimLightingMix);
-            float3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * RimTexture.Sample(MeshTextureSampler, mainUv).rgb;
+            float3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * Tex2DS(RimTexture, TextureFiltering, mainUv).rgb;
             vColor.rgb += rim * rimLighting;
 
             // additive matcap
@@ -254,11 +252,11 @@ PS
             float3 worldViewUp = normalize(worldCameraUp - viewRayWs * dot(viewRayWs, worldCameraUp));
             float3 worldViewRight = normalize(cross(viewRayWs, worldViewUp));
             float2 matcapUv = float2(dot(worldViewRight, normalWs), dot(worldViewUp, normalWs)) * 0.5 + 0.5;
-            float3 matcapLighting = MatCap.Sample(MeshTextureSampler, matcapUv).rgb;
+            float3 matcapLighting = Tex2DS(MatCap, TextureFiltering, matcapUv).rgb;
             vColor.rgb += matcapLighting;
 
             // Emission
-            float3 emission = EmissionMap.Sample(MeshTextureSampler, mainUv).rgb * EmissionColor.rgb;
+            float3 emission = Tex2DS(EmissionMap, TextureFiltering, mainUv).rgb * EmissionColor.rgb;
             vColor.rgb += emission;
 
             // debug
