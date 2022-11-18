@@ -249,7 +249,7 @@ PS
             float3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * RimTexture.Sample(MeshTextureSampler, mainUv).rgb;
             vColor.rgb += rim * rimLighting;
 
-            // // additive matcap
+            // additive matcap
             float3 worldCameraUp = normalize(g_matWorldToView[1].rgb);
             float3 worldViewUp = normalize(worldCameraUp - viewRayWs * dot(viewRayWs, worldCameraUp));
             float3 worldViewRight = normalize(cross(viewRayWs, worldViewUp));
