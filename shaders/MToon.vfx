@@ -83,38 +83,38 @@ PS
     //
     // Main
     //
-    CreateInputTexture2D(InputLitTexture, Srgb, 8, "", "", "MToon Color,0/Texture,1/1", Default4(1.0, 1.0, 1.0, 1.0));
+    CreateInputTexture2D(InputLitTexture, Srgb, 8, "", "", "MToon Color,1/Texture,1/1", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(LitTexture)< Channel(RGBA, Box(InputLitTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
-    float4 LitColor < UiType(Color); Default4(1.0, 1.0, 1.0, 1.0); UiGroup("MToon Color,0/Texture,1/2"); >;
-    CreateInputTexture2D(InputShadeTexture, Srgb, 8, "", "", "MToon Color,0/Texture,1/3", Default4(1.0, 1.0, 1.0, 1.0));
+    float4 LitColor < UiType(Color); Default4(1.0, 1.0, 1.0, 1.0); UiGroup("MToon Color,1/Texture,1/2"); >;
+    CreateInputTexture2D(InputShadeTexture, Srgb, 8, "", "", "MToon Color,1/Texture,1/3", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(ShadeTexture)< Channel(RGBA, Box(InputShadeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
-    float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,0/Texture,1/4"); >;
+    float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,1/Texture,1/4"); >;
 
     #if S_RENDERING_TYPE == 1 
-        float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,0/Alpha,2/1"); >;
+        float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,1/Alpha,2/1"); >;
     #endif
 
-    float ShadingToony < UiType(Slider); Range(0.0, 1.0); Default1(0.9); UiGroup("MToon Lighting,1/1"); >;
+    float ShadingToony < UiType(Slider); Range(0.0, 1.0); Default1(0.9); UiGroup("MToon Lighting,2/1"); >;
 
-    float ShadingShift < UiType(Slider); Range(-1.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/1"); >;
-    CreateInputTexture2D(InputShadingGradeTexture, Srgb, 8, "", "", "MToon Lighting,1/Advanced Settings,2/2", Default4(1.0, 1.0, 1.0, 1.0));
+    float ShadingShift < UiType(Slider); Range(-1.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,2/Advanced Settings,2/1"); >;
+    CreateInputTexture2D(InputShadingGradeTexture, Srgb, 8, "", "", "MToon Lighting,2/Advanced Settings,2/2", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(ShadingGradeTexture)< Channel(RGBA, Box(InputShadingGradeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
-    float ShadingGradeRate < UiType(Slider); Range(0.0, 1.0); Default1(1.0); UiGroup("MToon Lighting,1/Advanced Settings,2/3"); >;
-    float LightColorAttenuation < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/4"); >;
-    float IndirectLightIntensity < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/5"); >;
+    float ShadingGradeRate < UiType(Slider); Range(0.0, 1.0); Default1(1.0); UiGroup("MToon Lighting,2/Advanced Settings,2/3"); >;
+    float LightColorAttenuation < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,2/Advanced Settings,2/4"); >;
+    float IndirectLightIntensity < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,2/Advanced Settings,2/5"); >;
 
-    CreateInputTexture2D(InputEmissionMap, Srgb, 8, "", "", "MToon Emission,2/1", Default4(1.0, 1.0, 1.0, 1.0));
+    CreateInputTexture2D(InputEmissionMap, Srgb, 8, "", "", "MToon Emission,3/1", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(EmissionMap)< Channel(RGBA, Box(InputEmissionMap), Srgb); OutputFormat(BC7); SrgbRead(true); >;
-    float4 EmissionColor < UiType(Color); Default4(0.0, 0.0, 0.0, 1.0); UiGroup("MToon Emission,2/2"); >;
-    CreateInputTexture2D(InputMatCap, Srgb, 8, "", "", "MToon Emission,2/3", Default4(0.0, 0.0, 0.0, 1.0));
+    float4 EmissionColor < UiType(Color); Default4(0.0, 0.0, 0.0, 1.0); UiGroup("MToon Emission,3/2"); >;
+    CreateInputTexture2D(InputMatCap, Srgb, 8, "", "", "MToon Emission,3/3", Default4(0.0, 0.0, 0.0, 1.0));
     CreateTexture2DWithoutSampler(MatCap)< Channel(RGBA, Box(InputMatCap), Srgb); OutputFormat(BC7); SrgbRead(true); >;
 
-    CreateInputTexture2D(InputRimTexture, Srgb, 8, "", "", "MToon Rim,3/1", Default4(1.0, 1.0, 1.0, 1.0));
+    CreateInputTexture2D(InputRimTexture, Srgb, 8, "", "", "MToon Rim,4/1", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(RimTexture)< Channel(RGBA, Box(InputRimTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
-    float4 RimColor < UiType(Color); Default4(0.0, 0.0, 0.0, 1.0); UiGroup("MToon Rim,3/2"); >;
-    float RimLightingMix < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Rim,3/3"); >;
-    float RimFresnelPower < UiType(Slider); Range(0.0, 100.0); Default1(1.0); UiGroup("MToon Rim,3/4"); >;
-    float RimLift < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Rim,3/5"); >;
+    float4 RimColor < UiType(Color); Default4(0.0, 0.0, 0.0, 1.0); UiGroup("MToon Rim,4/2"); >;
+    float RimLightingMix < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Rim,4/3"); >;
+    float RimFresnelPower < UiType(Slider); Range(0.0, 100.0); Default1(1.0); UiGroup("MToon Rim,4/4"); >;
+    float RimLift < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Rim,4/5"); >;
 
     // const
     static const float PI_2 = 6.28318530718;
