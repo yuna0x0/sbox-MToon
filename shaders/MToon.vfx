@@ -87,12 +87,9 @@ PS
     //
     CreateInputTexture2D(InputLitTexture, Srgb, 8, "", "", "MToon Color,0/Texture,1/1", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(LitTexture)< Channel(RGBA, Box(InputLitTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
-
     float4 LitColor < UiType(Color); Default4(1.0, 1.0, 1.0, 1.0); UiGroup("MToon Color,0/Texture,1/2"); >;
-
     CreateInputTexture2D(InputShadeTexture, Srgb, 8, "", "", "MToon Color,0/Texture,1/3", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(ShadeTexture)< Channel(RGBA, Box(InputShadeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
-
     float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,0/Texture,1/4"); >;
 
     #if S_RENDERING_TYPE == 1 
@@ -102,14 +99,10 @@ PS
     float ShadingToony < UiType(Slider); Range(0.0, 1.0); Default1(0.9); UiGroup("MToon Lighting,1/1"); >;
 
     float ShadingShift < UiType(Slider); Range(-1.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/1"); >;
-
     CreateInputTexture2D(InputShadingGradeTexture, Srgb, 8, "", "", "MToon Lighting,1/Advanced Settings,2/2", Default4(1.0, 1.0, 1.0, 1.0));
     CreateTexture2DWithoutSampler(ShadingGradeTexture)< Channel(RGBA, Box(InputShadingGradeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
-
     float ShadingGradeRate < UiType(Slider); Range(0.0, 1.0); Default1(1.0); UiGroup("MToon Lighting,1/Advanced Settings,2/3"); >;
-
     float LightColorAttenuation < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/4"); >;
-
     float IndirectLightIntensity < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Lighting,1/Advanced Settings,2/5"); >;
 
     CreateInputTexture2D(InputEmissionMap, Srgb, 8, "", "", "MToon Emission,2/1", Default4(1.0, 1.0, 1.0, 1.0));
@@ -237,9 +230,9 @@ PS
             float3 toonedGI = 0.5 * (SampleLightProbeVolume(positionWs, float3(0, 1, 0)) + SampleLightProbeVolume(positionWs, float3(0, -1, 0)));
             indirectLighting = lerp(toonedGI, SampleLightProbeVolume(positionWs, normalWs), IndirectLightIntensity);
             indirectLighting = lerp(indirectLighting, max(EPS_COL, max(indirectLighting.x, max(indirectLighting.y, indirectLighting.z))), LightColorAttenuation); // color atten
-            lightShade.Diffuse = indirectLighting * lit.xyz;
+            lightShade.Diffuse = indirectLighting * lit.rgb;
 
-            lightShade.Diffuse = min(lightShade.Diffuse, lit.xyz); // comment out if you want to PBR absolutely.
+            lightShade.Diffuse = min(lightShade.Diffuse, lit.rgb); // comment out if you want to PBR absolutely.
 
             // No specular
             lightShade.Specular = 0.0f;
@@ -250,40 +243,32 @@ PS
         float4 PostProcess(float4 vColor)
         {
             // parametric rim lighting
-            half3 staticRimLighting = 1;
-            half3 mixedRimLighting = lighting + indirectLighting;
-            half3 rimLighting = lerp(staticRimLighting, mixedRimLighting, RimLightingMix);
-            half3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * RimTexture.Sample(MeshTextureSampler, mainUv).rgb;
-            vColor.xyz += rim * rimLighting;
+            float3 staticRimLighting = 1;
+            float3 mixedRimLighting = lighting + indirectLighting;
+            float3 rimLighting = lerp(staticRimLighting, mixedRimLighting, RimLightingMix);
+            float3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * RimTexture.Sample(MeshTextureSampler, mainUv).rgb;
+            vColor.rgb += rim * rimLighting;
 
             // // additive matcap
-            half3 worldCameraUp = normalize(g_matWorldToView[1].xyz);
-            half3 worldViewUp = normalize(worldCameraUp - viewRayWs * dot(viewRayWs, worldCameraUp));
-            half3 worldViewRight = normalize(cross(viewRayWs, worldViewUp));
-            half2 matcapUv = half2(dot(worldViewRight, normalWs), dot(worldViewUp, normalWs)) * 0.5 + 0.5;
-            half3 matcapLighting = MatCap.Sample(MeshTextureSampler, matcapUv).xyz;
-            vColor.xyz += matcapLighting;
+            float3 worldCameraUp = normalize(g_matWorldToView[1].rgb);
+            float3 worldViewUp = normalize(worldCameraUp - viewRayWs * dot(viewRayWs, worldCameraUp));
+            float3 worldViewRight = normalize(cross(viewRayWs, worldViewUp));
+            float2 matcapUv = float2(dot(worldViewRight, normalWs), dot(worldViewUp, normalWs)) * 0.5 + 0.5;
+            float3 matcapLighting = MatCap.Sample(MeshTextureSampler, matcapUv).rgb;
+            vColor.rgb += matcapLighting;
 
             // Emission
             float3 emission = EmissionMap.Sample(MeshTextureSampler, mainUv).rgb * EmissionColor.rgb;
-            vColor.xyz += emission;
+            vColor.rgb += emission;
 
             // debug
             #if S_DEBUGGING_OPTIONS == 1
-                #ifdef MTOON_FORWARD_ADD
-                    return float4(0, 0, 0, 0);
-                #else
-                    return float4(normalWs * 0.5 + 0.5, alpha);
-                #endif
+                return float4(normalWs * 0.5 + 0.5, alpha);
             #elif S_DEBUGGING_OPTIONS == 2
-                #ifdef MTOON_FORWARD_ADD
-                    return float4(0, 0, 0, 0);
-                #else
-                    return float4(lightIntensity * lighting, alpha);
-                #endif
+                return float4(lightIntensity * lighting, alpha);
             #endif
 
-            return float4(vColor.xyz, alpha);
+            return float4(vColor.rgb, alpha);
         }
     };
 
