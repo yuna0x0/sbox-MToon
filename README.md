@@ -30,7 +30,7 @@ Different texture inputs might have different default colors.
 
 # Limitation
 
-- Multi-pass rendering is not yet supported. Therefore, the outline pass has not been implemented yet.
+- Multi-pass rendering is not yet supported (sboxgame/issues#1067). Therefore, the outline pass has not been implemented yet.
 - Engine built-in shadowing and depth prepass (Shadow Caster) is different from Unity. The shadow under direct light looks weird or dirty. Might need to port the shadow caster.
 
 # Screenshot
@@ -40,3 +40,8 @@ Different texture inputs might have different default colors.
 ![sbox_mtoon_demo_2](https://user-images.githubusercontent.com/5277788/202859717-d1afe748-e87e-40fd-9f38-795fecb2ebbd.png)
 
 ![sbox_mtoon_demo_3](https://user-images.githubusercontent.com/5277788/201977946-14832108-164c-4f9b-af71-93f289ce706e.png)
+
+# Credits
+
+### 3D model used in the screenshot
+Eve by Hamuketsu (@ganbaru_sisters): https://sisters.booth.pm/items/2557029
