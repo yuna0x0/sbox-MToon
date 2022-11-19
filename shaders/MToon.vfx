@@ -14,7 +14,9 @@ FEATURES
 {
     Feature(F_USE_NORMAL_MAP, 0..1, "MToon Lighting");
     #include "common/features.hlsl"
-    Feature(F_RENDERING_TYPE, 0..1(0="Opaque", 1="Cutout"), "Rendering");
+    Feature(F_RENDERING_TYPE, 0..3(0="Opaque", 1="Cutout", 2="Transparent", 3="TransparentWithZWrite"), "Rendering");
+    Feature(F_PREPASS_ALPHA_TEST, 0..1, "Rendering");
+    FeatureRule(Requires1(F_PREPASS_ALPHA_TEST, F_RENDERING_TYPE == 1), "Requires cutout");
     Feature(F_DEBUGGING_OPTIONS, 0..2(0="None", 1="Normal", 2="LitShadeRate"), "MToon Debug");
 }
 
@@ -22,6 +24,8 @@ FEATURES
 COMMON
 {
     #include "common/shared.hlsl"
+    #define CULL_MODE_ALREADY_SET
+    #define DEPTH_STATE_ALREADY_SET
 }
 
 //=========================================================================================================================
@@ -65,20 +69,143 @@ PS
     StaticCombo(S_RENDERING_TYPE, F_RENDERING_TYPE, Sys(ALL));
     StaticCombo(S_DEBUGGING_OPTIONS, F_DEBUGGING_OPTIONS, Sys(ALL));
 
+    RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
+
+    RenderState(DepthEnable, true);
+    RenderState(DepthFunc, LESS_EQUAL);
+
+    #if S_RENDERING_TYPE == 1 // Cutout
+        #define S_ALPHA_TEST 1
+        RenderState(DepthWriteEnable, true);
+    #elif S_RENDERING_TYPE == 2 // Transparent
+        #define S_TRANSLUCENT 1
+        RenderState(DepthWriteEnable, false);
+    #elif S_RENDERING_TYPE == 3 // TransparentWithZWrite
+        #define S_TRANSLUCENT 1
+        RenderState(DepthWriteEnable, true);
+    #else // Opaque
+        RenderState(DepthWriteEnable, true);
+    #endif
+
     //
     // Includes
     //
     #include "common/pixel.hlsl"
 
-    RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
+    // Override Material Helper to support Alpha channel
+    float4 MToonSurfaceShading(PixelInput i, Material m, ShadingModel sm)
+    {
+        // Initialize our shading model.
+        // Converts material inputs into parameters that are more easily consumed by the shader.
+        sm.Init(i, m);
 
-    #if S_USE_NORMAL_MAP
-        #define _NORMALMAP
-    #endif
+        // Get the lighting contribution from the dynamic direct lights
+        LightShade shade = DynamicLight::GetLighting(i, m, sm);
+        
+        // Get the lighting contribution from the static direct lights
+        shade = SumLightShades(shade, StaticLight::GetLighting(i, m, sm));
 
-    #if S_RENDERING_TYPE == 1
-        #define _ALPHATEST_ON
-    #endif
+        // Get the lighting contribution from the indirect lighting ( ambient and cubemaps )
+        shade = SumLightShades(shade, IndirectLight::GetLighting(i, m, sm));
+
+        // Post process and return
+        return sm.PostProcess(float4(shade.Diffuse + shade.Specular, 1.0f)).rgba;
+    }
+
+    //-----------------------------------------------------------------------------
+    //
+    // Compose the final color with lighting from material parameters
+    //
+    //-----------------------------------------------------------------------------
+
+    float4 MToonFinalizePixelMaterial(PixelInput i, Material m, ShadingModel sm)
+    {    
+        float4 vColor = float4(MToonSurfaceShading(i, m, sm));
+
+        #if(S_MODE_TOOLS_VIS)
+            float3 vPositionWs = i.vPositionWithOffsetWs.xyz + g_vCameraPositionWs;
+
+            ToolsVisInitColor(vColor.rgba);
+
+            ToolsVisHandleFlatOverlayColor(m.Albedo.rgb, vColor.rgba);
+            ToolsVisHandleFullbright(vColor.rgba, m.Albedo.rgb, vPositionWs.xyz, i.vNormalWs.xyz);
+
+            #if(!S_UNLIT)
+                [flatten]
+                if (g_nToolsVisMode == TOOLS_VIS_MODE_DIFFUSE_LIGHTING || 
+                    g_nToolsVisMode == TOOLS_VIS_MODE_SPECULAR_LIGHTING || 
+                    g_nToolsVisMode == TOOLS_VIS_MODE_DIFFUSE_AMBIENT_OCCLUSION ||
+                    g_nToolsVisMode == TOOLS_VIS_MODE_SPECULAR_AMBIENT_OCCLUSION)
+                {
+                    LightShade shade = DynamicLight::GetLighting(i, m, sm);
+                    shade = SumLightShades(shade, StaticLight::GetLighting(i, m, sm));
+                    shade = SumLightShades(shade, IndirectLight::GetLighting(i, m, sm));
+
+                    if (g_nToolsVisMode == TOOLS_VIS_MODE_DIFFUSE_LIGHTING)
+                    {
+                        vColor.rgb = shade.Diffuse * 0.5f * g_flToneMapScalarLinear;
+                    }
+                    else if(g_nToolsVisMode == TOOLS_VIS_MODE_SPECULAR_LIGHTING)
+                    {
+                        vColor.rgb = shade.Specular * g_flToneMapScalarLinear;
+                    }
+                    else if(g_nToolsVisMode == TOOLS_VIS_MODE_DIFFUSE_AMBIENT_OCCLUSION)
+                    {
+                        vColor.rgb = shade.Diffuse * m.AmbientOcclusion.rgb;
+                    }
+                    else if(g_nToolsVisMode == TOOLS_VIS_MODE_SPECULAR_AMBIENT_OCCLUSION)
+                    {
+                        vColor.rgb = shade.Specular * m.AmbientOcclusion.rgb;
+                    }
+                }
+            #endif
+
+            [flatten]
+            if (g_nToolsVisMode == TOOLS_VIS_MODE_TRANSMISSIVE_LIGHTING)
+            {
+                vColor.rgb = m.Transmission * g_flToneMapScalarLinear;
+            }
+
+            // TODO: ToolsVisHandleLightingComplexity(vColor.rgba, lightingTerms);
+
+            ToolsVisHandleAlbedo(vColor.rgba, m.Albedo.rgb);
+            ToolsVisHandleReflectivity(vColor.rgba, m.Albedo.rgb);
+            ToolsVisHandleRoughness(vColor.rgba, float2(m.Roughness, m.Metalness));
+            ToolsVisHandleShaderIDColor(vColor.rgba);
+            // TODO: ToolsVisHandleCubemapReflections(vColor.rgba, lightingTerms);
+
+            ToolsVisHandleNormalWs(vColor.rgba, m.Normal.xyz);
+            ToolsVisHandleTangentUWs(vColor.rgba, i.vTangentUWs.xyz);
+            ToolsVisHandleTangentVWs(vColor.rgba, i.vTangentVWs.xyz);
+            ToolsVisHandleGeometricNormalWs(vColor.rgba, normalize(i.vNormalWs.xyz));
+
+            #ifdef COMMON_PIXEL_MATERIAL_INPUTS_H
+            #ifndef S_MULTIBLEND
+                ToolsVisShowUVs(vColor.rgba, m.Albedo.rgb, g_tColor, i.vTextureCoords.xy);
+                ToolsVisShowMipUtilization(vColor.rgba, m.Albedo.rgb, g_tColor, i.vTextureCoords.xy);
+            #endif
+            #endif
+
+            if (g_nToolsVisMode != 0)
+            {
+                vColor.rgb = saturate(vColor.rgb); // turns off bloom in tools vis mode
+            }
+
+        #endif
+        
+        return vColor;
+    }
+
+    float4 MToonFinalizePixelMaterial(PixelInput i, Material m)
+    {
+        //
+        // If not defined, use the default shading model
+        // Keeps compatiblity with the old code
+        //
+        ShadingModelStandard sm;
+        
+        return FinalizePixelMaterial(i, m, sm);
+    }
 
     //
     // Main
@@ -90,7 +217,7 @@ PS
     CreateTexture2DWithoutSampler(ShadeTexture)< Channel(RGBA, Box(InputShadeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
     float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,1/Texture,1/4"); >;
 
-    #if S_RENDERING_TYPE == 1 
+    #if S_ALPHA_TEST
         float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,1/Alpha,2/1"); >;
     #endif
 
@@ -155,11 +282,17 @@ PS
         
             // alpha
             alpha = 1;
-            #ifdef _ALPHATEST_ON
+            #if S_ALPHA_TEST
                 alpha = LitColor.a * mainTex.a;
                 alpha = (alpha - Cutoff) / max(fwidth(alpha), EPS_COL) + 0.5; // Alpha to Coverage
                 clip(alpha - Cutoff);
                 alpha = 1.0; // Discarded, otherwise it should be assumed to have full opacity
+            #endif
+            #if S_TRANSLUCENT
+                alpha = LitColor.a * mainTex.a;
+                #if !S_ALPHA_TEST // Only enable this on D3D11, where I tested it
+                    clip(alpha - 0.0001); // Slightly improves rendering with layered transparency
+                #endif
             #endif
 
             positionWithOffsetWs = i.vPositionWithOffsetWs;
@@ -169,7 +302,7 @@ PS
             viewRayWs = CalculatePositionToCameraDirWs(positionWs);
 
             // normal
-            #ifdef _NORMALMAP
+            #if S_USE_NORMAL_MAP
                 normalWs = m.Normal;
             #else
                 normalWs = float3(i.vNormalWs.x, i.vNormalWs.y, i.vNormalWs.z);
@@ -273,6 +406,6 @@ PS
     {
         Material m = GatherMaterial(i);
         MToonShadingModel sm;
-        return FinalizePixelMaterial(i, m, sm);
+        return MToonFinalizePixelMaterial(i, m, sm);
     }
 }
