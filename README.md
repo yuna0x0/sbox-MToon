@@ -31,7 +31,7 @@ Different texture inputs might have different default colors.
 # Limitation
 
 - Multi-pass rendering is not yet supported. Therefore, the outline pass has not been implemented yet.
-- Some lighting will look different than Unity because of the engine or partial code differences.
+- Engine built-in shadowing and depth prepass (Shadow Caster) is different from Unity. The shadow under direct light looks weird or dirty. Might need to port the shadow caster.
 
 # Screenshot
 
