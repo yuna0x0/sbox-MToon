@@ -96,12 +96,20 @@ GS
             float OutlineScaledMaxDistance < UiType(Slider); Range(1.0, 10.0); Default1(1.0); UiGroup("MToon Outline,5/Width,1/3"); >;
         #endif
 
+        /**
+         * Extracts the normal vector of the tangent frame encoded in the specified quaternion.
+         */
+        float3 UnpackToTangentFrame(const float4 q) {
+            return float3(0.0, 0.0, 1.0) + float3(2.0, -2.0, -2.0) * q.x * q.zwx + float3(2.0, 2.0, -2.0) * q.y * q.wzy;
+        }
+
         float3 CalculateOutlineVertexPosition(VertexInput v, float3 worldNormal)
         {
             float outlineTex = Tex2DLevelS(OutlineWidthTexture, TextureFiltering, v.vTexCoord.xy, 0).r;
 
             #if S_OUTLINE_WIDTH_MODE == 1 // MTOON_OUTLINE_WIDTH_WORLD
-                float3 outlineOffset = 0.5 * OutlineWidth * outlineTex * worldNormal;
+                // [TODO] Need fix. Normal unpack function seems incorrect.
+                float3 outlineOffset = 0.5 * OutlineWidth * outlineTex * length(worldNormal) * normalize(UnpackToTangentFrame(v.vNormalOs));
                 float3 vertex = v.vPositionOs + outlineOffset;
             // #elif defined(MTOON_OUTLINE_WIDTH_SCREEN)
             //     float4 nearUpperRight = mul(unity_CameraInvProjection, float4(1, 1, UNITY_NEAR_CLIP_VALUE, _ProjectionParams.y));
@@ -157,6 +165,8 @@ PS
     //
     // Combos
     //
+    StaticCombo(S_RENDER_BACKFACES, F_RENDER_BACKFACES, Sys(ALL));
+
     StaticCombo(S_USE_NORMAL_MAP, F_USE_NORMAL_MAP, Sys(ALL));
     StaticCombo(S_RENDERING_TYPE, F_RENDERING_TYPE, Sys(ALL));
     StaticCombo(S_DEBUGGING_OPTIONS, F_DEBUGGING_OPTIONS, Sys(ALL));
@@ -166,18 +176,19 @@ PS
 
     /*
         Currently, due to a lack of multi-pass support, when outline is enabled,
-        CullMode (both forward base and outline) will be set to BACK, which is incorrect.
 
-        Correct implementation should be:
+        If CullMode NONE -> Outline Pass CullMode will be NONE
+        (with workaround below by using IsFrontFace to discard unwanted pixels)
+
+        If CullMode BACK -> Outline Pass CullMode will be BACK
+        which is not same as original shader.
+
+        Original implementation is: (in Unity, not sure if applies here)
         CullMode BACK -> Outline Pass CullMode FRONT
         CullMode FRONT -> Outline Pass CullMode BACK
         CullMode NONE -> Outline Pass CullMode FRONT
     */
-    #if S_OUTLINE_WIDTH_MODE
-        RenderState(CullMode, BACK);
-    #else
-        RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
-    #endif
+    RenderState(CullMode, S_RENDER_BACKFACES ? NONE : DEFAULT);
 
     RenderState(DepthEnable, true);
     RenderState(DepthFunc, LESS_EQUAL);
@@ -382,6 +393,10 @@ PS
         float3 lighting;
         float3 indirectLighting;
 
+        #if S_RENDER_BACKFACES
+		    bool isFrontFace;
+	    #endif
+
         //
         // Consumes a material and converts it to the internal shading parameters,
         // That is more easily consumed by the shader.
@@ -425,11 +440,17 @@ PS
             #else
                 normalWs = float3(i.vNormalWs.x, i.vNormalWs.y, i.vNormalWs.z);
             #endif
+            normalWs *= step(0, dot(viewRayWs, normalWs)) * 2 - 1; // flip if projection matrix is flipped
             normalWs *= lerp(+1.0, -1.0, isOutline);
+            normalWs = normalize(normalWs);
 
             lit = LitColor * mainTex;
             shade = ShadeColor * Tex2DS(ShadeTexture, TextureFiltering, mainUv);
             shadingGrade = 1.0 - ShadingGradeRate * (1.0 - Tex2DS(ShadingGradeTexture, TextureFiltering, mainUv).r);
+
+            #if S_RENDER_BACKFACES
+                isFrontFace = IsFrontFace(i.face);
+            #endif
         }
 
         //
@@ -518,6 +539,12 @@ PS
                     vColor.rgb = lerp(vColor.rgb, OutlineColor.rgb * lerp(float3(1, 1, 1), vColor.rgb, OutlineLightingMix), isOutline);
                 #else
                 #endif
+            #endif
+
+            // [Workaround] discard unwanted outline pixels
+            #if S_RENDER_BACKFACES
+                if (isOutline && !isFrontFace)
+                    discard;
             #endif
 
             // debug
