@@ -394,8 +394,8 @@ PS
         float3 indirectLighting;
 
         #if S_RENDER_BACKFACES
-		    bool isFrontFace;
-	    #endif
+            bool isFrontFace;
+        #endif
 
         //
         // Consumes a material and converts it to the internal shading parameters,
