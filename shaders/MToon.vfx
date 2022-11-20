@@ -13,12 +13,27 @@ HEADER
 FEATURES
 {
     Feature(F_USE_NORMAL_MAP, 0..1, "MToon Lighting");
+    // Feature(F_OUTLINE_WIDTH_MODE, 0..2(0="None", 1="WorldCoordinates", 2="ScreenCoordinates"), "MToon Outline (WIP)");
+    Feature(F_OUTLINE_WIDTH_MODE, 0..1(0="None", 1="WorldCoordinates"), "MToon Outline (WIP)");
+    Feature(F_OUTLINE_COLOR_MODE, 0..1(0="FixedColor", 1="MixedLighting"), "MToon Outline (WIP)");
+    FeatureRule(Requires1(F_OUTLINE_COLOR_MODE, F_OUTLINE_WIDTH_MODE == 1, F_OUTLINE_WIDTH_MODE == 2), "Requires outline enabled");
     #include "common/features.hlsl"
     Feature(F_RENDERING_TYPE, 0..3(0="Opaque", 1="Cutout", 2="Transparent", 3="TransparentWithZWrite"), "Rendering");
     Feature(F_PREPASS_ALPHA_TEST, 0..1, "Rendering");
     FeatureRule(Requires1(F_PREPASS_ALPHA_TEST, F_RENDERING_TYPE == 1), "Requires cutout");
     Feature(F_DEBUGGING_OPTIONS, 0..2(0="None", 1="Normal", 2="LitShadeRate"), "MToon Debug");
 }
+
+// MODES
+// {
+//     Default();
+//     VrForward();                                                        // Indicates this shader will be used for main rendering
+//     Depth("depth_only.vfx");                                            // Shader that will be used for shadowing and depth prepass
+//     ToolsVis(S_MODE_TOOLS_VIS);                                         // Ability to see in the editor
+//     ToolsWireframe("vr_tools_wireframe.vfx");                           // Allows for mat_wireframe to work
+//     ToolsShadingComplexity("vr_tools_shading_complexity.vfx");          // Shows how expensive drawing is in debug view
+//     Reflection("high_quality_reflections.vfx");
+// }
 
 //=========================================================================================================================
 COMMON
@@ -40,6 +55,7 @@ struct VertexInput
 struct PixelInput
 {
     #include "common/pixelinput.hlsl"
+    float isOutline : TEXCOORD9;
 };
 
 //=========================================================================================================================
@@ -50,11 +66,87 @@ VS
     //
     // Main
     //
-    PixelInput MainVs(INSTANCED_SHADER_PARAMS(VertexInput i))
+    VertexInput MainVs(INSTANCED_SHADER_PARAMS(VertexInput i))
     {
-        PixelInput o = ProcessVertex(i);
+        // PixelInput o = ProcessVertex(i);
         // Add your vertex manipulation functions here
+        // o.isOutline = 0;
+        // return FinalizeVertex(o);
+
+        // i.vNormalOs = normalize(i.vNormalOs);
+        return i;
+    }
+}
+
+//=========================================================================================================================
+
+GS
+{
+    StaticCombo(S_OUTLINE_WIDTH_MODE, F_OUTLINE_WIDTH_MODE, Sys(ALL));
+
+    #include "common/vertex.hlsl"
+
+    #if S_OUTLINE_WIDTH_MODE // Outline Enabled
+        #include "common/pixel.config.hlsl"
+
+        CreateInputTexture2D(InputOutlineWidthTexture, Srgb, 8, "", "", "MToon Outline,5/Width,1/1", Default4(1.0, 1.0, 1.0, 1.0));
+        CreateTexture2DWithoutSampler(OutlineWidthTexture)< Channel(RGBA, Box(InputOutlineWidthTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
+        float OutlineWidth < UiType(Slider); Range(0.01, 1.0); Default1(0.5); UiGroup("MToon Outline,5/Width,1/2"); >;
+        #if S_OUTLINE_WIDTH_MODE == 2 // MTOON_OUTLINE_WIDTH_SCREEN
+            float OutlineScaledMaxDistance < UiType(Slider); Range(1.0, 10.0); Default1(1.0); UiGroup("MToon Outline,5/Width,1/3"); >;
+        #endif
+
+        float3 CalculateOutlineVertexPosition(VertexInput v, float3 worldNormal)
+        {
+            float outlineTex = Tex2DLevelS(OutlineWidthTexture, TextureFiltering, v.vTexCoord.xy, 0).r;
+
+            #if S_OUTLINE_WIDTH_MODE == 1 // MTOON_OUTLINE_WIDTH_WORLD
+                float3 outlineOffset = 0.5 * OutlineWidth * outlineTex * worldNormal;
+                float3 vertex = v.vPositionOs + outlineOffset;
+            // #elif defined(MTOON_OUTLINE_WIDTH_SCREEN)
+            //     float4 nearUpperRight = mul(unity_CameraInvProjection, float4(1, 1, UNITY_NEAR_CLIP_VALUE, _ProjectionParams.y));
+            //     float aspect = abs(nearUpperRight.y / nearUpperRight.x);
+            //     float4 vertex = UnityObjectToClipPos(v.vertex);
+            //     float3 viewNormal = mul((float3x3)UNITY_MATRIX_IT_MV, v.normal.xyz);
+            //     float3 clipNormal = TransformViewToProjection(viewNormal.xyz);
+            //     float2 projectedNormal = normalize(clipNormal.xy);
+            //     projectedNormal *= min(vertex.w, _OutlineScaledMaxDistance);
+            //     projectedNormal.x *= aspect;
+            //     vertex.xy += 0.01 * OutlineWidth * outlineTex * projectedNormal.xy * saturate(1 - abs(normalize(viewNormal).z)); // ignore offset when normal toward camera
+            #else
+                float3 vertex = v.vPositionOs;
+            #endif
+            return vertex;
+        }
+    #endif
+
+    PixelInput InitializePixelInput(VertexInput i, float3 projectedVertex, float isOutline)
+    {
+        i.vPositionOs = projectedVertex;
+        PixelInput o = ProcessVertex(i);
+        o.isOutline = isOutline;
         return FinalizeVertex(o);
+    }
+
+    [maxvertexcount(6)]
+    void MainGs(triangle VertexInput IN[3], inout TriangleStream<PixelInput> stream)
+    {
+        #if S_OUTLINE_WIDTH_MODE // Outline Enabled
+            for (int i = 2; i >= 0; --i)
+            {
+                VertexInput v = IN[i];
+                float3 worldNormal = ProcessVertex(v).vNormalWs.xyz;
+                stream.Append(InitializePixelInput(v, CalculateOutlineVertexPosition(v, worldNormal), 1));
+            }
+            stream.RestartStrip();
+        #endif
+
+        for (int j = 0; j < 3; ++j)
+        {
+            VertexInput v = IN[j];
+            stream.Append(InitializePixelInput(v, v.vPositionOs, 0));
+        }
+        stream.RestartStrip();
     }
 }
 
@@ -69,7 +161,23 @@ PS
     StaticCombo(S_RENDERING_TYPE, F_RENDERING_TYPE, Sys(ALL));
     StaticCombo(S_DEBUGGING_OPTIONS, F_DEBUGGING_OPTIONS, Sys(ALL));
 
-    RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
+    StaticCombo(S_OUTLINE_WIDTH_MODE, F_OUTLINE_WIDTH_MODE, Sys(ALL));
+    StaticCombo(S_OUTLINE_COLOR_MODE, F_OUTLINE_COLOR_MODE, Sys(ALL));
+
+    /*
+        Currently, due to a lack of multi-pass support, when outline is enabled,
+        CullMode (both forward base and outline) will be set to BACK, which is incorrect.
+
+        Correct implementation should be:
+        CullMode BACK -> Outline Pass CullMode FRONT
+        CullMode FRONT -> Outline Pass CullMode BACK
+        CullMode NONE -> Outline Pass CullMode FRONT
+    */
+    #if S_OUTLINE_WIDTH_MODE
+        RenderState(CullMode, BACK);
+    #else
+        RenderState(CullMode, F_RENDER_BACKFACES ? NONE : DEFAULT);
+    #endif
 
     RenderState(DepthEnable, true);
     RenderState(DepthFunc, LESS_EQUAL);
@@ -243,6 +351,13 @@ PS
     float RimFresnelPower < UiType(Slider); Range(0.0, 100.0); Default1(1.0); UiGroup("MToon Rim,4/4"); >;
     float RimLift < UiType(Slider); Range(0.0, 1.0); Default1(0.0); UiGroup("MToon Rim,4/5"); >;
 
+    #if S_OUTLINE_WIDTH_MODE // Outline Enabled
+        float4 OutlineColor < UiType(Color); Default4(0.0, 0.0, 0.0, 1.0); UiGroup("MToon Outline,5/Color,2/1"); >;
+        #if S_OUTLINE_COLOR_MODE == 1 // MTOON_OUTLINE_COLOR_MIXED
+            float OutlineLightingMix < UiType(Slider); Range(0.0, 1.0); Default1(1.0); UiGroup("MToon Outline,5/Color,2/2"); >;
+        #endif
+    #endif
+
     // const
     static const float PI_2 = 6.28318530718;
     static const float EPS_COL = 0.00001;
@@ -252,6 +367,7 @@ PS
         float2 mainUv;
         float4 mainTex;
         float alpha;
+        float isOutline;
 
         float3 positionWithOffsetWs;
         float3 positionWs;
@@ -295,6 +411,8 @@ PS
                 #endif
             #endif
 
+            isOutline = i.isOutline;
+
             positionWithOffsetWs = i.vPositionWithOffsetWs;
             positionWs = positionWithOffsetWs + g_vCameraPositionWs;
 
@@ -307,6 +425,7 @@ PS
             #else
                 normalWs = float3(i.vNormalWs.x, i.vNormalWs.y, i.vNormalWs.z);
             #endif
+            normalWs *= lerp(+1.0, -1.0, isOutline);
 
             lit = LitColor * mainTex;
             shade = ShadeColor * Tex2DS(ShadeTexture, TextureFiltering, mainUv);
@@ -377,7 +496,7 @@ PS
             float3 mixedRimLighting = lighting + indirectLighting;
             float3 rimLighting = lerp(staticRimLighting, mixedRimLighting, RimLightingMix);
             float3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * Tex2DS(RimTexture, TextureFiltering, mainUv).rgb;
-            vColor.rgb += rim * rimLighting;
+            vColor.rgb += lerp(rim * rimLighting, float3(0, 0, 0), isOutline);
 
             // additive matcap
             float3 worldCameraUp = normalize(g_vCameraUpDirWs);
@@ -385,11 +504,21 @@ PS
             float3 worldViewRight = normalize(cross(viewRayWs, worldViewUp));
             float2 matcapUv = float2(dot(worldViewRight, normalWs), dot(worldViewUp, normalWs)) * 0.5 + 0.5;
             float3 matcapLighting = Tex2DS(MatCap, TextureFiltering, matcapUv).rgb;
-            vColor.rgb += matcapLighting;
+            vColor.rgb += lerp(matcapLighting, float3(0, 0, 0), isOutline);
 
             // Emission
             float3 emission = Tex2DS(EmissionMap, TextureFiltering, mainUv).rgb * EmissionColor.rgb;
-            vColor.rgb += emission;
+            vColor.rgb += lerp(emission, float3(0, 0, 0), isOutline);
+
+            // outline
+            #if S_OUTLINE_WIDTH_MODE // Outline Enabled
+                #if S_OUTLINE_COLOR_MODE == 0 // MTOON_OUTLINE_COLOR_FIXED
+                    vColor.rgb = lerp(vColor.rgb, OutlineColor.rgb, isOutline);
+                #elif S_OUTLINE_COLOR_MODE == 1 // MTOON_OUTLINE_COLOR_MIXED
+                    vColor.rgb = lerp(vColor.rgb, OutlineColor.rgb * lerp(float3(1, 1, 1), vColor.rgb, OutlineLightingMix), isOutline);
+                #else
+                #endif
+            #endif
 
             // debug
             #if S_DEBUGGING_OPTIONS == 1
