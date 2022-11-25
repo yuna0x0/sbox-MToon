@@ -96,20 +96,13 @@ GS
             float OutlineScaledMaxDistance < UiType(Slider); Range(1.0, 10.0); Default1(1.0); UiGroup("MToon Outline,5/Width,1/3"); >;
         #endif
 
-        /**
-         * Extracts the normal vector of the tangent frame encoded in the specified quaternion.
-         */
-        float3 UnpackToTangentFrame(const float4 q) {
-            return float3(0.0, 0.0, 1.0) + float3(2.0, -2.0, -2.0) * q.x * q.zwx + float3(2.0, 2.0, -2.0) * q.y * q.wzy;
-        }
-
         float3 CalculateOutlineVertexPosition(VertexInput v, float3 worldNormal)
         {
             float outlineTex = Tex2DLevelS(OutlineWidthTexture, TextureFiltering, v.vTexCoord.xy, 0).r;
 
             #if S_OUTLINE_WIDTH_MODE == 1 // MTOON_OUTLINE_WIDTH_WORLD
-                // [TODO] Need fix. Normal unpack function seems incorrect.
-                float3 outlineOffset = 0.5 * OutlineWidth * outlineTex * length(worldNormal) * normalize(UnpackToTangentFrame(v.vNormalOs));
+                // [TODO] Need fix. The outline result seems incorrect or weird (might be related to Object Space Normal or CullMode differences).
+                float3 outlineOffset = 0.5 * OutlineWidth * outlineTex * length(worldNormal) * v.vNormalOs.xyz;
                 float3 vertex = v.vPositionOs + outlineOffset;
             // #elif defined(MTOON_OUTLINE_WIDTH_SCREEN)
             //     float4 nearUpperRight = mul(unity_CameraInvProjection, float4(1, 1, UNITY_NEAR_CLIP_VALUE, _ProjectionParams.y));
