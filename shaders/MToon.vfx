@@ -532,12 +532,12 @@ PS
                     vColor.rgb = lerp(vColor.rgb, OutlineColor.rgb * lerp(float3(1, 1, 1), vColor.rgb, OutlineLightingMix), isOutline);
                 #else
                 #endif
-            #endif
 
-            // [Workaround] discard unwanted outline pixels
-            #if S_RENDER_BACKFACES
-                if (isOutline && !isFrontFace)
-                    discard;
+                // [Workaround] discard unwanted outline pixels
+                #if S_RENDER_BACKFACES
+                    if (isOutline && !isFrontFace)
+                        discard;
+                #endif
             #endif
 
             // debug
