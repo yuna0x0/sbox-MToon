@@ -1,6 +1,6 @@
 {
   "Title": "MToon Shader",
-  "Type": "addon",
+  "Type": "content",
   "Org": "edison",
   "Ident": "mtoon",
   "Tags": "shader toon anime",
@@ -9,21 +9,7 @@
   "AssetsPath": "",
   "ResourcePaths": null,
   "HasCode": false,
-  "CodePath": "/code/",
+  "CodePath": null,
   "RootNamespace": null,
-  "Metadata": {
-    "PrimaryAsset": "",
-    "PhysicsMins": "-1,-1,-1",
-    "PhysicsMaxs": "1,1,1",
-    "RenderMins": "-1,-1,-1",
-    "RenderMaxs": "-1,-1,-1",
-    "Compiler": {
-      "RootNamespace": "Sandbox",
-      "DefineConstants": "SANDBOX;ADDON;DEBUG",
-      "NoWarn": "1701;1702;1591;"
-    },
-    "Summary": "Toon Shader with Global Illumination",
-    "Description": "Toon Shader with Global Illumination. Ported to s\u0026box (Source 2).",
-    "Public": true
-  }
+  "Metadata": {}
 }
