@@ -181,7 +181,7 @@ PS
         CullMode FRONT -> Outline Pass CullMode BACK
         CullMode NONE -> Outline Pass CullMode FRONT
     */
-    RenderState(CullMode, S_RENDER_BACKFACES ? NONE : DEFAULT);
+    // RenderState(CullMode, S_RENDER_BACKFACES ? NONE : DEFAULT);
 
     RenderState(DepthEnable, true);
     RenderState(DepthFunc, LESS_EQUAL);
@@ -203,121 +203,6 @@ PS
     // Includes
     //
     #include "common/pixel.hlsl"
-
-    // Override Material Helper to support Alpha channel
-    float4 MToonSurfaceShading(PixelInput i, Material m, ShadingModel sm)
-    {
-        // Initialize our shading model.
-        // Converts material inputs into parameters that are more easily consumed by the shader.
-        sm.Init(i, m);
-
-        // Get the lighting contribution from the dynamic direct lights
-        LightShade shade = DynamicLight::GetLighting(i, m, sm);
-        
-        // Get the lighting contribution from the static direct lights
-        shade = SumLightShades(shade, StaticLight::GetLighting(i, m, sm));
-
-        // Get the lighting contribution from the indirect lighting ( ambient and cubemaps )
-        shade = SumLightShades(shade, IndirectLight::GetLighting(i, m, sm));
-
-        // Post process and return
-        return sm.PostProcess(float4(shade.Diffuse + shade.Specular, 1.0f)).rgba;
-    }
-
-    //-----------------------------------------------------------------------------
-    //
-    // Compose the final color with lighting from material parameters
-    //
-    //-----------------------------------------------------------------------------
-
-    float4 MToonFinalizePixelMaterial(PixelInput i, Material m, ShadingModel sm)
-    {    
-        float4 vColor = float4(MToonSurfaceShading(i, m, sm));
-
-        #if(S_MODE_TOOLS_VIS)
-            float3 vPositionWs = i.vPositionWithOffsetWs.xyz + g_vCameraPositionWs;
-
-            ToolsVisInitColor(vColor.rgba);
-
-            ToolsVisHandleFlatOverlayColor(m.Albedo.rgb, vColor.rgba);
-            ToolsVisHandleFullbright(vColor.rgba, m.Albedo.rgb, vPositionWs.xyz, i.vNormalWs.xyz);
-
-            #if(!S_UNLIT)
-                [flatten]
-                if (g_nToolsVisMode == TOOLS_VIS_MODE_DIFFUSE_LIGHTING || 
-                    g_nToolsVisMode == TOOLS_VIS_MODE_SPECULAR_LIGHTING || 
-                    g_nToolsVisMode == TOOLS_VIS_MODE_DIFFUSE_AMBIENT_OCCLUSION ||
-                    g_nToolsVisMode == TOOLS_VIS_MODE_SPECULAR_AMBIENT_OCCLUSION)
-                {
-                    LightShade shade = DynamicLight::GetLighting(i, m, sm);
-                    shade = SumLightShades(shade, StaticLight::GetLighting(i, m, sm));
-                    shade = SumLightShades(shade, IndirectLight::GetLighting(i, m, sm));
-
-                    if (g_nToolsVisMode == TOOLS_VIS_MODE_DIFFUSE_LIGHTING)
-                    {
-                        vColor.rgb = shade.Diffuse * 0.5f * g_flToneMapScalarLinear;
-                    }
-                    else if(g_nToolsVisMode == TOOLS_VIS_MODE_SPECULAR_LIGHTING)
-                    {
-                        vColor.rgb = shade.Specular * g_flToneMapScalarLinear;
-                    }
-                    else if(g_nToolsVisMode == TOOLS_VIS_MODE_DIFFUSE_AMBIENT_OCCLUSION)
-                    {
-                        vColor.rgb = shade.Diffuse * m.AmbientOcclusion.rgb;
-                    }
-                    else if(g_nToolsVisMode == TOOLS_VIS_MODE_SPECULAR_AMBIENT_OCCLUSION)
-                    {
-                        vColor.rgb = shade.Specular * m.AmbientOcclusion.rgb;
-                    }
-                }
-            #endif
-
-            [flatten]
-            if (g_nToolsVisMode == TOOLS_VIS_MODE_TRANSMISSIVE_LIGHTING)
-            {
-                vColor.rgb = m.Transmission * g_flToneMapScalarLinear;
-            }
-
-            // TODO: ToolsVisHandleLightingComplexity(vColor.rgba, lightingTerms);
-
-            ToolsVisHandleAlbedo(vColor.rgba, m.Albedo.rgb);
-            ToolsVisHandleReflectivity(vColor.rgba, m.Albedo.rgb);
-            ToolsVisHandleRoughness(vColor.rgba, float2(m.Roughness, m.Metalness));
-            ToolsVisHandleShaderIDColor(vColor.rgba);
-            // TODO: ToolsVisHandleCubemapReflections(vColor.rgba, lightingTerms);
-
-            ToolsVisHandleNormalWs(vColor.rgba, m.Normal.xyz);
-            ToolsVisHandleTangentUWs(vColor.rgba, i.vTangentUWs.xyz);
-            ToolsVisHandleTangentVWs(vColor.rgba, i.vTangentVWs.xyz);
-            ToolsVisHandleGeometricNormalWs(vColor.rgba, normalize(i.vNormalWs.xyz));
-
-            #ifdef COMMON_PIXEL_MATERIAL_INPUTS_H
-            #ifndef S_MULTIBLEND
-                ToolsVisShowUVs(vColor.rgba, m.Albedo.rgb, g_tColor, i.vTextureCoords.xy);
-                ToolsVisShowMipUtilization(vColor.rgba, m.Albedo.rgb, g_tColor, i.vTextureCoords.xy);
-            #endif
-            #endif
-
-            if (g_nToolsVisMode != 0)
-            {
-                vColor.rgb = saturate(vColor.rgb); // turns off bloom in tools vis mode
-            }
-
-        #endif
-        
-        return vColor;
-    }
-
-    float4 MToonFinalizePixelMaterial(PixelInput i, Material m)
-    {
-        //
-        // If not defined, use the default shading model
-        // Keeps compatiblity with the old code
-        //
-        ShadingModelStandard sm;
-        
-        return FinalizePixelMaterial(i, m, sm);
-    }
 
     //
     // Main
@@ -555,6 +440,6 @@ PS
     {
         Material m = GatherMaterial(i);
         MToonShadingModel sm;
-        return MToonFinalizePixelMaterial(i, m, sm);
+        return FinalizePixelMaterial(i, m, sm);
     }
 }
