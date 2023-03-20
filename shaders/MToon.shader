@@ -349,7 +349,7 @@ PS
             float maxIntensityThreshold = lerp(1, ShadingShift, ShadingToony);
             float minIntensityThreshold = ShadingShift;
             lightIntensity = saturate((lightIntensity - minIntensityThreshold) / max(EPS_COL, (maxIntensityThreshold - minIntensityThreshold)));
-            
+
             // Albedo color
             lightShade.Diffuse = lerp(shade.rgb, lit.rgb, lightIntensity);
 
