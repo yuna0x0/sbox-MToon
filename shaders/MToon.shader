@@ -39,8 +39,6 @@ FEATURES
 COMMON
 {
     #include "common/shared.hlsl"
-    #define CULL_MODE_ALREADY_SET
-    #define DEPTH_STATE_ALREADY_SET
 }
 
 //=========================================================================================================================
