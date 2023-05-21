@@ -283,10 +283,10 @@ PS
         {
             // uv
             mainUv = i.vTextureCoords.xy;
-            
+
             // main tex
             mainTex = Tex2DS(LitTexture, TextureFiltering, mainUv);
-        
+
             // alpha
             alpha = 1;
             #if S_ALPHA_TEST
@@ -372,7 +372,7 @@ PS
         LightShade Indirect()
         {
             LightShade lightShade;
-            
+
             float3 toonedGI = 0.5 * (SampleLightProbeVolume(positionWs, float3(0, 1, 0)) + SampleLightProbeVolume(positionWs, float3(0, -1, 0)));
             indirectLighting = lerp(toonedGI, SampleLightProbeVolume(positionWs, normalWs), IndirectLightIntensity);
             indirectLighting = lerp(indirectLighting, max(EPS_COL, max(indirectLighting.x, max(indirectLighting.y, indirectLighting.z))), LightColorAttenuation); // color atten
