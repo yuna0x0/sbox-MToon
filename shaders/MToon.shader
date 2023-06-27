@@ -367,7 +367,7 @@ PS
 
             Light light = AmbientLight::From(i, m);
             float3 vAmbientCube[6];
-		    SampleLightProbeVolume(vAmbientCube, light.Position);
+            SampleLightProbeVolume(vAmbientCube, light.Position);
 
             float3 toonedGI = 0.5 * (SampleIrradiance(vAmbientCube, float3(0, 1, 0)) + SampleIrradiance(vAmbientCube, float3(0, -1, 0)));
             indirectLighting = lerp(toonedGI, SampleIrradiance(vAmbientCube, normalWs), IndirectLightIntensity);
