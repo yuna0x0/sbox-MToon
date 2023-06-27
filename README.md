@@ -1,6 +1,6 @@
 # sbox-MToon
 
-**Asset.Party link (Fallback Only): https://asset.party/edison/mtoon**
+**Asset.Party link: https://asset.party/edison/mtoon_shader**
 
 Toon Shader with Global Illumination. Ported to s&amp;box (Source 2).
 

@@ -19,8 +19,6 @@ FEATURES
     FeatureRule(Requires1(F_OUTLINE_COLOR_MODE, F_OUTLINE_WIDTH_MODE == 1, F_OUTLINE_WIDTH_MODE == 2), "Requires outline enabled");
     #include "common/features.hlsl"
     Feature(F_RENDERING_TYPE, 0..3(0="Opaque", 1="Cutout", 2="Transparent", 3="TransparentWithZWrite"), "Rendering");
-    Feature(F_PREPASS_ALPHA_TEST, 0..1, "Rendering");
-    FeatureRule(Requires1(F_PREPASS_ALPHA_TEST, F_RENDERING_TYPE == 1), "Requires cutout");
     Feature(F_DEBUGGING_OPTIONS, 0..2(0="None", 1="Normal", 2="LitShadeRate"), "MToon Debug");
 }
 
@@ -85,7 +83,11 @@ GS
     #include "common/vertex.hlsl"
 
     #if S_OUTLINE_WIDTH_MODE // Outline Enabled
-        #include "common/pixel.config.hlsl"
+        #ifdef F_TEXTURE_FILTERING
+            SamplerState TextureFiltering < Filter((F_TEXTURE_FILTERING == 0 ? ANISOTROPIC : (F_TEXTURE_FILTERING == 1 ? BILINEAR : (F_TEXTURE_FILTERING == 2 ? TRILINEAR : (F_TEXTURE_FILTERING == 3 ? POINT : NEAREST))))); MaxAniso(8); > ;
+        #else
+            SamplerState TextureFiltering < Filter(ANISOTROPIC); MaxAniso(8); > ;
+        #endif
 
         CreateInputTexture2D(InputOutlineWidthTexture, Srgb, 8, "", "", "MToon Outline,5/Width,1/1", Default4(1.0, 1.0, 1.0, 1.0));
         CreateTexture2DWithoutSampler(OutlineWidthTexture)< Channel(RGBA, Box(InputOutlineWidthTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
@@ -185,13 +187,16 @@ PS
     RenderState(DepthFunc, LESS_EQUAL);
 
     #if S_RENDERING_TYPE == 1 // Cutout
-        #define S_ALPHA_TEST 1
+        #define ALPHA_TEST 1
+        RenderState(AlphaTestEnable, true);
         RenderState(DepthWriteEnable, true);
     #elif S_RENDERING_TYPE == 2 // Transparent
-        #define S_TRANSLUCENT 1
+        #define TRANSLUCENT 1
+        BoolAttribute(translucent, true);
         RenderState(DepthWriteEnable, false);
     #elif S_RENDERING_TYPE == 3 // TransparentWithZWrite
-        #define S_TRANSLUCENT 1
+        #define TRANSLUCENT 1
+        BoolAttribute(translucent, true);
         RenderState(DepthWriteEnable, true);
     #else // Opaque
         RenderState(DepthWriteEnable, true);
@@ -212,7 +217,7 @@ PS
     CreateTexture2DWithoutSampler(ShadeTexture)< Channel(RGBA, Box(InputShadeTexture), Srgb); OutputFormat(BC7); SrgbRead(true); >;
     float4 ShadeColor < UiType(Color); Default4(0.97, 0.81, 0.86, 1.0); UiGroup("MToon Color,1/Texture,1/4"); >;
 
-    #if S_ALPHA_TEST
+    #if ALPHA_TEST
         float Cutoff < UiType(Slider); Range(0.0, 1.0); Default1(0.5); UiGroup("MToon Color,1/Alpha,2/1"); >;
     #endif
 
@@ -249,37 +254,31 @@ PS
     static const float PI_2 = 6.28318530718;
     static const float EPS_COL = 0.00001;
 
+    static float2 mainUv;
+    static float4 mainTex;
+    static float alpha;
+    static float isOutline;
+
+    static float3 positionWithOffsetWs;
+    static float3 positionWs;
+    static float3 viewRayWs;
+    static float3 normalWs;
+
+    static float4 lit;
+    static float4 shade;
+    static float shadingGrade;
+
+    static float lightIntensity;
+    static float3 lighting;
+    static float3 indirectLighting;
+
+    #if S_RENDER_BACKFACES
+        static bool isFrontFace;
+    #endif
+
     class MToonShadingModel : ShadingModel
     {
-        float2 mainUv;
-        float4 mainTex;
-        float alpha;
-        float isOutline;
-
-        float3 positionWithOffsetWs;
-        float3 positionWs;
-        float3 viewRayWs;
-        float3 normalWs;
-
-        float4 lit;
-        float4 shade;
-        float shadingGrade;
-
-        float lightIntensity;
-        float3 lighting;
-        float3 indirectLighting;
-
-        #if S_RENDER_BACKFACES
-            bool isFrontFace;
-        #endif
-
-        //
-        // Consumes a material and converts it to the internal shading parameters,
-        // That is more easily consumed by the shader.
-        //
-        // Inherited classes can expand this to whichever shading model they want.
-        //
-        void Init(const PixelInput i, const Material m)
+        static void Init(PixelInput i, Material m)
         {
             // uv
             mainUv = i.vTextureCoords.xy;
@@ -289,15 +288,15 @@ PS
 
             // alpha
             alpha = 1;
-            #if S_ALPHA_TEST
+            #if ALPHA_TEST
                 alpha = LitColor.a * mainTex.a;
                 alpha = (alpha - Cutoff) / max(fwidth(alpha), EPS_COL) + 0.5; // Alpha to Coverage
                 clip(alpha - Cutoff);
                 alpha = 1.0; // Discarded, otherwise it should be assumed to have full opacity
             #endif
-            #if S_TRANSLUCENT
+            #if TRANSLUCENT
                 alpha = LitColor.a * mainTex.a;
-                #if !S_ALPHA_TEST // Only enable this on D3D11, where I tested it
+                #if !ALPHA_TEST // Only enable this on D3D11, where I tested it
                     clip(alpha - 0.0001); // Slightly improves rendering with layered transparency
                 #endif
             #endif
@@ -329,20 +328,16 @@ PS
             #endif
         }
 
-        //
-        // Executed for every direct light
-        //
-        LightShade Direct(const LightData light)
+        static LightResult Direct(PixelInput i, Material m, Light l)
         {
-            // Shading output
-            LightShade lightShade;
+            LightResult result = LightResult::Init();
 
-            float dotNL = dot(light.LightDir, normalWs);
+            float dotNL = dot(l.Direction, normalWs);
 
             // Decide albedo color rate from Direct Light
             lightIntensity = dotNL; // [-1, +1]
             lightIntensity = lightIntensity * 0.5 + 0.5; // from [-1, +1] to [0, 1]
-            lightIntensity = lightIntensity * light.Visibility * light.Attenuation; // receive shadow
+            lightIntensity = lightIntensity * l.Visibility * l.Attenuation; // receive shadow
             lightIntensity = lightIntensity * shadingGrade; // darker
             lightIntensity = lightIntensity * 2.0 - 1.0; // from [0, 1] to [-1, +1]
             // tooned. mapping from [minIntensityThreshold, maxIntensityThreshold] to [0, 1]
@@ -351,49 +346,50 @@ PS
             lightIntensity = saturate((lightIntensity - minIntensityThreshold) / max(EPS_COL, (maxIntensityThreshold - minIntensityThreshold)));
 
             // Albedo color
-            lightShade.Diffuse = lerp(shade.rgb, lit.rgb, lightIntensity);
+            result.Diffuse = lerp(shade.rgb, lit.rgb, lightIntensity);
 
-            float3 lightColor = saturate(light.Visibility * light.Attenuation * light.Color);
+            float3 lightColor = saturate(l.Visibility * l.Attenuation * l.Color);
             // Direct Light
             lighting = lightColor;
             lighting = lerp(lighting, max(EPS_COL, max(lighting.x, max(lighting.y, lighting.z))), LightColorAttenuation); // color atten
             // base light does not darken.
-            lightShade.Diffuse *= lighting;
+            result.Diffuse *= lighting;
 
             // No specular
-            lightShade.Specular = 0.0f;
+            result.Specular = 0.0f;
 
-            return lightShade;
+            return result;
         }
 
-        //
-        // Executed for indirect lighting, combine ambient occlusion, etc.
-        //
-        LightShade Indirect()
+        static LightResult Indirect(PixelInput i, Material m)
         {
-            LightShade lightShade;
+            LightResult result = LightResult::Init();
 
-            float3 toonedGI = 0.5 * (SampleLightProbeVolume(positionWs, float3(0, 1, 0)) + SampleLightProbeVolume(positionWs, float3(0, -1, 0)));
-            indirectLighting = lerp(toonedGI, SampleLightProbeVolume(positionWs, normalWs), IndirectLightIntensity);
+            Light light = AmbientLight::From(i, m);
+            float3 vAmbientCube[6];
+		    SampleLightProbeVolume(vAmbientCube, light.Position);
+
+            float3 toonedGI = 0.5 * (SampleIrradiance(vAmbientCube, float3(0, 1, 0)) + SampleIrradiance(vAmbientCube, float3(0, -1, 0)));
+            indirectLighting = lerp(toonedGI, SampleIrradiance(vAmbientCube, normalWs), IndirectLightIntensity);
             indirectLighting = lerp(indirectLighting, max(EPS_COL, max(indirectLighting.x, max(indirectLighting.y, indirectLighting.z))), LightColorAttenuation); // color atten
-            lightShade.Diffuse = indirectLighting * lit.rgb;
+            result.Diffuse = indirectLighting * lit.rgb;
 
-            lightShade.Diffuse = min(lightShade.Diffuse, lit.rgb); // comment out if you want to PBR absolutely.
+            result.Diffuse = min(result.Diffuse, lit.rgb); // comment out if you want to PBR absolutely.
 
             // No specular
-            lightShade.Specular = 0.0f;
+            result.Specular = 0.0f;
 
-            return lightShade;
+            return result;
         }
 
-        float4 PostProcess(float4 vColor)
+        static float4 PostProcess(float4 color)
         {
             // parametric rim lighting
             float3 staticRimLighting = 1;
             float3 mixedRimLighting = lighting + indirectLighting;
             float3 rimLighting = lerp(staticRimLighting, mixedRimLighting, RimLightingMix);
             float3 rim = pow(saturate(1.0 - dot(normalWs, viewRayWs) + RimLift), max(RimFresnelPower, EPS_COL)) * RimColor.rgb * Tex2DS(RimTexture, TextureFiltering, mainUv).rgb;
-            vColor.rgb += lerp(rim * rimLighting, float3(0, 0, 0), isOutline);
+            color.rgb += lerp(rim * rimLighting, float3(0, 0, 0), isOutline);
 
             // additive matcap
             float3 worldCameraUp = normalize(g_vCameraUpDirWs);
@@ -401,18 +397,18 @@ PS
             float3 worldViewRight = normalize(cross(viewRayWs, worldViewUp));
             float2 matcapUv = float2(dot(worldViewRight, normalWs), dot(worldViewUp, normalWs)) * 0.5 + 0.5;
             float3 matcapLighting = Tex2DS(MatCap, TextureFiltering, matcapUv).rgb;
-            vColor.rgb += lerp(matcapLighting, float3(0, 0, 0), isOutline);
+            color.rgb += lerp(matcapLighting, float3(0, 0, 0), isOutline);
 
             // Emission
             float3 emission = Tex2DS(EmissionMap, TextureFiltering, mainUv).rgb * EmissionColor.rgb;
-            vColor.rgb += lerp(emission, float3(0, 0, 0), isOutline);
+            color.rgb += lerp(emission, float3(0, 0, 0), isOutline);
 
             // outline
             #if S_OUTLINE_WIDTH_MODE // Outline Enabled
                 #if S_OUTLINE_COLOR_MODE == 0 // MTOON_OUTLINE_COLOR_FIXED
-                    vColor.rgb = lerp(vColor.rgb, OutlineColor.rgb, isOutline);
+                    color.rgb = lerp(color.rgb, OutlineColor.rgb, isOutline);
                 #elif S_OUTLINE_COLOR_MODE == 1 // MTOON_OUTLINE_COLOR_MIXED
-                    vColor.rgb = lerp(vColor.rgb, OutlineColor.rgb * lerp(float3(1, 1, 1), vColor.rgb, OutlineLightingMix), isOutline);
+                    color.rgb = lerp(color.rgb, OutlineColor.rgb * lerp(float3(1, 1, 1), color.rgb, OutlineLightingMix), isOutline);
                 #else
                 #endif
 
@@ -430,14 +426,47 @@ PS
                 return float4(lightIntensity * lighting, alpha);
             #endif
 
-            return float4(vColor.rgb, alpha);
+            return float4(color.rgb, alpha);
+        }
+
+        static float4 Shade(PixelInput i, Material m)
+        {
+            Init(i, m);
+
+            LightResult vLightResult = LightResult::Init();
+
+            //
+            // Shade direct lighting for dynamic and static lights
+            //
+            uint index;
+            for (index = 0; index < DynamicLight::Count(i); index++)
+            {
+                Light light = DynamicLight::From(i, index);
+                vLightResult = LightResult::Sum(vLightResult, Direct(i, m, light));
+            }
+
+            [unroll]
+            for (index = 0; index < StaticLight::Count(i); index++)
+            {
+                Light light = StaticLight::From(i, index);
+                if(light.Visibility > 0.0f)
+                    vLightResult = LightResult::Sum(vLightResult, Direct(i, m, light));
+            }
+
+            //
+            // Shade indirect lighting
+            //
+            vLightResult = LightResult::Sum(vLightResult, Indirect(i, m));
+
+            float4 colorResult = PostProcess(float4(vLightResult.Diffuse + vLightResult.Specular, m.Opacity));
+
+            return ShadingModel::Finalize(i, m, colorResult);
         }
     };
 
     float4 MainPs(PixelInput i) : SV_Target0
     {
-        Material m = GatherMaterial(i);
-        MToonShadingModel sm;
-        return FinalizePixelMaterial(i, m, sm);
+        Material m = Material::From(i);
+        return MToonShadingModel::Shade(i, m);
     }
 }

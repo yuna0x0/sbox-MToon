@@ -1,0 +1,28 @@
+{
+  "publish": {
+    "Enabled": true,
+    "ProjectConfig": {
+      "Title": "MToon Shader",
+      "Type": "shader",
+      "Org": "edison",
+      "Ident": "mtoon_shader",
+      "Tags": "shader toon anime",
+      "Schema": 0,
+      "HasAssets": false,
+      "AssetsPath": null,
+      "Resources": null,
+      "MenuResources": null,
+      "HasCode": false,
+      "CodePath": null,
+      "PackageReferences": null,
+      "EditorReferences": null,
+      "Metadata": {
+        "SingleAssetSource": "shaders/mtoon.shader",
+        "Summary": "Toon Shader with Global Illumination. Ported to s\u0026box (Source 2).",
+        "Description": "[Source Code]\nhttps://github.com/edisonlee55/sbox-MToon\n\n[Source Shader]\nhttps://github.com/Santarh/MToon\n\n[Credits]\n3D model used in the screenshot:\n- Eve by Hamuketsu (@ganbaru_sisters): https://sisters.booth.pm/items/2557029",
+        "Public": true,
+        "ReplaceTags": "shader toon anime"
+      }
+    }
+  }
+}
