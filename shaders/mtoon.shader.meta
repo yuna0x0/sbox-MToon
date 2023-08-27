@@ -1,5 +1,6 @@
 {
   "publish": {
+    "Allowed": true,
     "Enabled": true,
     "ProjectConfig": {
       "Title": "MToon Shader",
